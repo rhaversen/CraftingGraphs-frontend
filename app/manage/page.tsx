@@ -5,8 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../components/GameDataProvider'
 import { api } from '../api'
 import type { Bench, Game, Item, Recipe, RecipeSlot } from '../types'
-import { AttributeEditor, type AttrRow, attrsToRows, rowsToAttrs } from '../components/AttributeEditor'
+import { AttributeEditor, type AttrRow, attrsToRows, keysToRows, rowsToAttrs } from '../components/AttributeEditor'
 import { MissingRecipesTab } from '../components/MissingRecipes'
+import { NewItemFields } from '../components/NewItemFields'
 
 type TabId = 'games' | 'items' | 'benches' | 'recipes' | 'missing'
 
@@ -94,6 +95,8 @@ export default function ManagePage() {
 	const gameItems = items.filter((i) => i.gameId === selectedGameId)
 	const gameBenches = benches.filter((b) => b.gameId === selectedGameId)
 	const gameRecipes = recipes.filter((r) => r.gameId === selectedGameId)
+	const selectedGame = games.find((g) => g.id === selectedGameId)
+	const gameAttrKeys = selectedGame?.attributeKeys ?? []
 
 	const tabs: { id: TabId; label: string; count: number }[] = [
 		{ id: 'games', label: 'Games', count: games.length },
@@ -155,6 +158,7 @@ export default function ManagePage() {
 				<ItemsTab
 					gameId={selectedGameId}
 					items={gameItems}
+					attributeKeys={gameAttrKeys}
 					onChanged={refreshAll}
 					showToast={showToast}
 				/>
@@ -173,6 +177,7 @@ export default function ManagePage() {
 					items={gameItems}
 					benches={gameBenches}
 					recipes={gameRecipes}
+					attributeKeys={gameAttrKeys}
 					onChanged={refreshAll}
 					showToast={showToast}
 				/>
@@ -183,6 +188,7 @@ export default function ManagePage() {
 					items={gameItems}
 					benches={gameBenches}
 					recipes={gameRecipes}
+					attributeKeys={gameAttrKeys}
 					onChanged={refreshAll}
 					showToast={showToast}
 				/>
@@ -208,19 +214,25 @@ function GamesTab({
 	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
 	const [link, setLink] = useState('')
+	const [attrKeys, setAttrKeys] = useState('')
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
 	const [editLink, setEditLink] = useState('')
+	const [editAttrKeys, setEditAttrKeys] = useState('')
 	const [confirmId, setConfirmId] = useState<string | null>(null)
+
+	const parseKeys = (s: string): string[] =>
+		s.split(',').map((k) => k.trim()).filter(Boolean)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!name.trim()) return
 		try {
-			await api.games.create({ name: name.trim(), link: link.trim() || undefined })
+			await api.games.create({ name: name.trim(), link: link.trim() || undefined, attributeKeys: parseKeys(attrKeys) })
 			showToast('success', `Game "${name.trim()}" created`)
 			setName('')
 			setLink('')
+			setAttrKeys('')
 			setShowAdd(false)
 			onChanged()
 		} catch (err) {
@@ -232,12 +244,13 @@ function GamesTab({
 		setEditingId(g.id)
 		setEditName(g.name ?? '')
 		setEditLink(g.link ?? '')
+		setEditAttrKeys((g.attributeKeys ?? []).join(', '))
 		setConfirmId(null)
 	}
 
 	const handleSave = async (id: string) => {
 		try {
-			await api.games.update(id, { name: editName.trim(), link: editLink.trim() || undefined })
+			await api.games.update(id, { name: editName.trim(), link: editLink.trim() || undefined, attributeKeys: parseKeys(editAttrKeys) })
 			showToast('success', 'Game updated')
 			setEditingId(null)
 			onChanged()
@@ -266,6 +279,7 @@ function GamesTab({
 							<input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Game name" autoFocus />
 							<input className={inputCls} value={link} onChange={(e) => setLink(e.target.value)} placeholder="Wiki link (optional)" />
 						</div>
+						<input className={inputCls} value={attrKeys} onChange={(e) => setAttrKeys(e.target.value)} placeholder="Default attribute keys (comma-separated, e.g. value, rarity)" />
 						<div className="flex gap-2">
 							<button type="submit" className={btnPrimary}>Create</button>
 							<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
@@ -288,8 +302,7 @@ function GamesTab({
 										<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 											<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
 											<input className={inputCls} value={editLink} onChange={(e) => setEditLink(e.target.value)} placeholder="Link" />
-										</div>
-										<div className="flex gap-2">
+										</div>									<input className={inputCls} value={editAttrKeys} onChange={(e) => setEditAttrKeys(e.target.value)} placeholder="Default attribute keys (comma-separated)" />										<div className="flex gap-2">
 											<button onClick={() => handleSave(g.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
 										</div>
@@ -308,8 +321,9 @@ function GamesTab({
 												<a href={g.link} target="_blank" rel="noopener noreferrer" className="ml-2 text-xs text-blue-500 hover:underline truncate">
 													{g.link}
 												</a>
-											)}
-										</div>
+											)}										{g.attributeKeys && g.attributeKeys.length > 0 && (
+											<span className="ml-2 text-xs text-gray-400">keys: {g.attributeKeys.join(', ')}</span>
+										)}										</div>
 										<button onClick={() => startEdit(g)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
 										<button onClick={() => setConfirmId(g.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
 									</div>
@@ -328,17 +342,19 @@ function GamesTab({
 function ItemsTab({
 	gameId,
 	items,
+	attributeKeys,
 	onChanged,
 	showToast,
 }: {
 	gameId: string
 	items: Item[]
+	attributeKeys: string[]
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
 	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
-	const [attrRows, setAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
+	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
 	const [editAttrRows, setEditAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
@@ -351,7 +367,7 @@ function ItemsTab({
 			await api.items.create({ name: name.trim(), attributes: rowsToAttrs(attrRows), gameId })
 			showToast('success', `Item "${name.trim()}" created`)
 			setName('')
-			setAttrRows([{ key: '', value: '' }])
+			setAttrRows(keysToRows(attributeKeys))
 			setShowAdd(false)
 			onChanged()
 		} catch (err) {
@@ -393,8 +409,13 @@ function ItemsTab({
 			<SectionCard title="Add Item">
 				{showAdd ? (
 					<form onSubmit={handleAdd} className="space-y-2">
-					<input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" autoFocus />
-					<AttributeEditor rows={attrRows} setRows={setAttrRows} />
+					<NewItemFields
+						name={name}
+						setName={setName}
+						attrRows={attrRows}
+						setAttrRows={setAttrRows}
+						autoFocus
+					/>
 						<div className="flex gap-2">
 							<button type="submit" className={btnPrimary}>Create</button>
 							<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
@@ -570,6 +591,9 @@ function BenchesTab({
 interface SlotRow {
 	item: string
 	count: string
+	isNew?: boolean
+	newName?: string
+	newAttrRows?: AttrRow[]
 }
 
 function updateSlot(arr: SlotRow[], setArr: (a: SlotRow[]) => void, idx: number, patch: Partial<SlotRow>) {
@@ -587,37 +611,61 @@ function SlotEditor({
 	setArr,
 	label,
 	items,
+	attributeKeys,
 }: {
 	arr: SlotRow[]
 	setArr: (a: SlotRow[]) => void
 	label: string
 	items: Item[]
+	attributeKeys: string[]
 }) {
 	return (
 		<div>
 			<span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
 			<div className="space-y-1">
 				{arr.map((row, idx) => (
-					<div key={idx} className="flex gap-1">
-						<select
-							className={inputCls}
-							value={row.item}
-							onChange={(e) => updateSlot(arr, setArr, idx, { item: e.target.value })}
-						>
-							<option value="">Select item...</option>
-							{items.map((it) => (
-								<option key={it.id} value={it.id}>{it.name}</option>
-							))}
-						</select>
-						<input
-							className={`${inputCls} w-16`}
-							type="number"
-							min="1"
-							value={row.count}
-							onChange={(e) => updateSlot(arr, setArr, idx, { count: e.target.value })}
-						/>
-						{arr.length > 1 && (
-							<button type="button" onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
+					<div key={idx} className="space-y-1 rounded-md border border-gray-100 dark:border-gray-800 p-1">
+						<div className="flex gap-1">
+							<button
+								type="button"
+								className={`rounded px-2 py-1 text-xs font-medium ${!row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+								onClick={() => updateSlot(arr, setArr, idx, { isNew: false })}
+							>Existing</button>
+							<button
+								type="button"
+								className={`rounded px-2 py-1 text-xs font-medium ${row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+								onClick={() => updateSlot(arr, setArr, idx, { isNew: true, item: '', newName: row.newName ?? '', newAttrRows: row.newAttrRows ?? keysToRows(attributeKeys) })}
+							>New</button>
+							<input
+								className={`${inputCls} w-16`}
+								type="number"
+								min="1"
+								value={row.count}
+								onChange={(e) => updateSlot(arr, setArr, idx, { count: e.target.value })}
+							/>
+							{arr.length > 1 && (
+								<button type="button" onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
+							)}
+						</div>
+						{row.isNew ? (
+							<NewItemFields
+								name={row.newName ?? ''}
+								setName={(s) => updateSlot(arr, setArr, idx, { newName: s })}
+								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
+								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
+
+							/>
+						) : (
+							<select
+								className={inputCls}
+								value={row.item}
+								onChange={(e) => updateSlot(arr, setArr, idx, { item: e.target.value })}
+							>
+								<option value="">Select item...</option>
+								{items.map((it) => (
+									<option key={it.id} value={it.id}>{it.name}</option>
+								))}
+							</select>
 						)}
 					</div>
 				))}
@@ -632,6 +680,7 @@ function RecipesTab({
 	items,
 	benches,
 	recipes,
+	attributeKeys,
 	onChanged,
 	showToast,
 }: {
@@ -639,6 +688,7 @@ function RecipesTab({
 	items: Item[]
 	benches: Bench[]
 	recipes: Recipe[]
+	attributeKeys: string[]
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
@@ -653,14 +703,37 @@ function RecipesTab({
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 
 	const slotToRow = (s: RecipeSlot): SlotRow => ({ item: s.item, count: String(s.count) })
-	const rowToSlot = (r: SlotRow) => ({ item: r.item, count: Number(r.count) || 1 })
+
+	const resolveSlots = async (rows: SlotRow[]): Promise<RecipeSlot[] | null> => {
+		const slots: RecipeSlot[] = []
+		for (const row of rows) {
+			if (row.isNew) {
+				if (!row.newName?.trim()) continue
+				try {
+					const created = await api.items.create({
+						gameId,
+						name: row.newName.trim(),
+						attributes: rowsToAttrs(row.newAttrRows ?? []),
+					})
+					slots.push({ item: created.id, count: Number(row.count) || 1 })
+				} catch (err) {
+					showToast('error', err instanceof Error ? err.message : 'Failed to create item')
+					return null
+				}
+			} else if (row.item) {
+				slots.push({ item: row.item, count: Number(row.count) || 1 })
+			}
+		}
+		return slots
+	}
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
-		const cleanInputs = inputs.filter((s) => s.item)
-		const cleanOutputs = outputs.filter((s) => s.item)
 		if (!benchId) { showToast('error', 'Please select a bench'); return }
-		if (cleanInputs.length === 0 || cleanOutputs.length === 0) {
+		const resolvedInputs = await resolveSlots(inputs)
+		const resolvedOutputs = await resolveSlots(outputs)
+		if (resolvedInputs === null || resolvedOutputs === null) return
+		if (resolvedInputs.length === 0 || resolvedOutputs.length === 0) {
 			showToast('error', 'Recipe needs at least one input and one output')
 			return
 		}
@@ -668,8 +741,8 @@ function RecipesTab({
 			await api.recipes.create({
 				gameId,
 				benchId,
-				inputs: cleanInputs.map(rowToSlot),
-				outputs: cleanOutputs.map(rowToSlot),
+				inputs: resolvedInputs,
+				outputs: resolvedOutputs,
 			})
 			showToast('success', 'Recipe created')
 			setBenchId('')
@@ -691,18 +764,19 @@ function RecipesTab({
 	}
 
 	const handleSave = async (id: string) => {
-		const cleanInputs = editInputs.filter((s) => s.item)
-		const cleanOutputs = editOutputs.filter((s) => s.item)
 		if (!editBenchId) { showToast('error', 'Please select a bench'); return }
-		if (cleanInputs.length === 0 || cleanOutputs.length === 0) {
+		const resolvedInputs = await resolveSlots(editInputs)
+		const resolvedOutputs = await resolveSlots(editOutputs)
+		if (resolvedInputs === null || resolvedOutputs === null) return
+		if (resolvedInputs.length === 0 || resolvedOutputs.length === 0) {
 			showToast('error', 'Recipe needs at least one input and one output')
 			return
 		}
 		try {
 			await api.recipes.update(id, {
 				benchId: editBenchId,
-				inputs: cleanInputs.map(rowToSlot),
-				outputs: cleanOutputs.map(rowToSlot),
+				inputs: resolvedInputs,
+				outputs: resolvedOutputs,
 			})
 			showToast('success', 'Recipe updated')
 			setEditingId(null)
@@ -745,8 +819,8 @@ function RecipesTab({
 								<option key={b.id} value={b.id}>{b.name}</option>
 							))}
 						</select>
-						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} />
-						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} />
+					<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
+					<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
 						<div className="flex gap-2">
 							<button type="submit" className={btnPrimary}>Create</button>
 							<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
@@ -772,8 +846,8 @@ function RecipesTab({
 											<option key={b.id} value={b.id}>{b.name}</option>
 										))}
 									</select>
-									<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} />
-									<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} />
+<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
+					<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
 
 										<div className="flex gap-2">
 											<button onClick={() => handleSave(r.id)} className={btnPrimary}>Save</button>

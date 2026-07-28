@@ -16,6 +16,11 @@ export function attrsToRows(attrs: Attributes | undefined | null): AttrRow[] {
 	return rows.length > 0 ? rows : [{ key: '', value: '' }]
 }
 
+export function keysToRows(keys: string[] | undefined | null): AttrRow[] {
+	if (!keys || keys.length === 0) return [{ key: '', value: '' }]
+	return keys.map((key) => ({ key, value: '' }))
+}
+
 export function rowsToAttrs(rows: AttrRow[]): Attributes {
 	const result: Attributes = {}
 	for (const row of rows) {

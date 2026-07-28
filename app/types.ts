@@ -5,6 +5,7 @@ export interface Game {
 	id: string
 	name: string | null
 	link: string | null
+	attributeKeys: string[]
 }
 
 export interface Item {

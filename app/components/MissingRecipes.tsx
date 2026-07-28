@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import { api } from '../api'
 import type { Bench, Item, Recipe } from '../types'
-import { AttributeEditor, type AttrRow, rowsToAttrs } from './AttributeEditor'
+import { type AttrRow, keysToRows, rowsToAttrs } from './AttributeEditor'
+import { NewItemFields } from './NewItemFields'
 
 type ToastType = 'success' | 'error'
 
@@ -50,6 +51,7 @@ export function MissingRecipesTab({
 	items,
 	benches,
 	recipes,
+	attributeKeys,
 	onChanged,
 	showToast,
 }: {
@@ -57,6 +59,7 @@ export function MissingRecipesTab({
 	items: Item[]
 	benches: Bench[]
 	recipes: Recipe[]
+	attributeKeys: string[]
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
@@ -68,7 +71,7 @@ export function MissingRecipesTab({
 	const [outputCount, setOutputCount] = useState('1')
 	const [outputMode, setOutputMode] = useState<'existing' | 'new'>('existing')
 	const [newItemName, setNewItemName] = useState('')
-	const [newItemAttrRows, setNewItemAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
+	const [newItemAttrRows, setNewItemAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
 
 	const selectedBench = benches.find((b) => b.id === selectedBenchId)
 	const inputCount = selectedBench?.inputCount ?? 0
@@ -265,10 +268,13 @@ export function MissingRecipesTab({
 														))}
 													</select>
 												) : (
-													<div className="space-y-2">
-														<input className={inputCls} value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Item name" autoFocus />
-														<AttributeEditor rows={newItemAttrRows} setRows={setNewItemAttrRows} />
-													</div>
+													<NewItemFields
+														name={newItemName}
+														setName={setNewItemName}
+														attrRows={newItemAttrRows}
+														setAttrRows={setNewItemAttrRows}
+														autoFocus
+													/>
 												)}
 												<div className="flex gap-2">
 													<button type="submit" className={btnPrimary}>Save</button>
@@ -280,8 +286,8 @@ export function MissingRecipesTab({
 															setOutputItem('')
 															setOutputCount('1')
 															setOutputMode('existing')
-															setNewItemName('')
-															setNewItemAttrRows([{ key: '', value: '' }])
+																setNewItemName('')
+															setNewItemAttrRows(keysToRows(attributeKeys))
 														}}
 													>Cancel</button>
 												</div>
@@ -298,7 +304,7 @@ export function MissingRecipesTab({
 														setOutputCount('1')
 													setOutputMode('existing')
 													setNewItemName('')
-													setNewItemAttrRows([{ key: '', value: '' }])
+													setNewItemAttrRows(keysToRows(attributeKeys))
 												}}
 													className={btnGhost}
 												>Create recipe</button>

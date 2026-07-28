@@ -29,9 +29,9 @@ export const api = {
 	games: {
 		list: () => request<Game[]>('/api/v1/games'),
 		get: (id: string) => request<Game>(`/api/v1/games/${id}`),
-		create: (data: { name: string | null; link?: string | null }) =>
+		create: (data: { name: string | null; link?: string | null; attributeKeys?: string[] }) =>
 			request<Game>('/api/v1/games', { method: 'POST', body: JSON.stringify(data) }),
-		update: (id: string, data: Partial<Pick<Game, 'name' | 'link'>>) =>
+		update: (id: string, data: Partial<Pick<Game, 'name' | 'link' | 'attributeKeys'>>) =>
 			request<Game>(`/api/v1/games/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 		delete: (id: string) =>
 			request<void>(`/api/v1/games/${id}`, { method: 'DELETE' }),
