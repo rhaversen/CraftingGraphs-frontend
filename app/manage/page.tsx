@@ -102,7 +102,7 @@ export default function ManagePage() {
 		{ id: 'games', label: 'Games', count: games.length },
 		{ id: 'items', label: 'Items', count: gameItems.length },
 		{ id: 'benches', label: 'Benches', count: gameBenches.length },
-		{ id: 'recipes', label: 'Recipes', count: gameRecipes.length },
+		{ id: 'recipes', label: 'Recipes', count: gameRecipes.filter((r) => r.outputs.length > 0).length },
 		{ id: 'missing', label: 'Missing', count: 0 },
 	]
 
@@ -176,7 +176,7 @@ export default function ManagePage() {
 					gameId={selectedGameId}
 					items={gameItems}
 					benches={gameBenches}
-					recipes={gameRecipes}
+					recipes={gameRecipes.filter((r) => r.outputs.length > 0)}
 					attributeKeys={gameAttrKeys}
 					onChanged={refreshAll}
 					showToast={showToast}

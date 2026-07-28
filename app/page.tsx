@@ -15,7 +15,7 @@ export default function Page() {
 		[items, selectedGameId],
 	)
 	const gameRecipes = useMemo(
-		() => recipes.filter((r) => r.gameId === selectedGameId),
+		() => recipes.filter((r) => r.gameId === selectedGameId && r.outputs.length > 0),
 		[recipes, selectedGameId],
 	)
 	const gameBenches = useMemo(
@@ -55,7 +55,7 @@ export default function Page() {
 						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 max-w-3xl w-full">
 							{games.map((g) => {
 								const gItems = items.filter((i) => i.gameId === g.id)
-								const gRecipes = recipes.filter((r) => r.gameId === g.id)
+								const gRecipes = recipes.filter((r) => r.gameId === g.id && r.outputs.length > 0)
 								const gBenches = benches.filter((b) => b.gameId === g.id)
 								return (
 									<a
