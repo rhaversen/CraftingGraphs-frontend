@@ -412,6 +412,7 @@ function ItemsTab({
 						attrRows={attrRows}
 						setAttrRows={setAttrRows}
 						autoFocus
+						existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
 					/>
 					<div className="flex gap-2">
 						<button type="submit" className={btnPrimary}>Create</button>
@@ -646,7 +647,7 @@ function SlotEditor({
 								setName={(s) => updateSlot(arr, setArr, idx, { newName: s })}
 								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
 								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
-
+							existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
 							/>
 						) : (
 							<select

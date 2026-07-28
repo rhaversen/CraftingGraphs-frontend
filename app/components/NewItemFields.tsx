@@ -11,23 +11,30 @@ export function NewItemFields({
 	attrRows,
 	setAttrRows,
 	autoFocus,
+	existingNames,
 }: {
 	name: string
 	setName: (s: string) => void
 	attrRows: AttrRow[]
 	setAttrRows: (r: AttrRow[]) => void
 	autoFocus?: boolean
+	existingNames?: string[]
 }) {
+	const trimmed = name.trim().toLowerCase()
+	const isDuplicate = trimmed !== '' && existingNames?.some((n) => n.toLowerCase() === trimmed) === true
 	return (
 		<div className="space-y-2">
 			<input
-				className={inputCls}
+				className={`${inputCls} ${isDuplicate ? 'border-red-500 focus:border-red-500' : ''}`}
 				value={name}
 				onChange={(e) => setName(e.target.value)}
 				placeholder="Item name"
 				autoFocus={autoFocus}
 				tabIndex={1}
 			/>
+			{isDuplicate && (
+				<p className="text-xs text-red-600 dark:text-red-400">An item with this name already exists</p>
+			)}
 			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={2} />
 		</div>
 	)

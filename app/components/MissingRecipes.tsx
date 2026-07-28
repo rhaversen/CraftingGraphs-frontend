@@ -273,8 +273,7 @@ export function MissingRecipesTab({
 														setName={setNewItemName}
 														attrRows={newItemAttrRows}
 														setAttrRows={setNewItemAttrRows}
-														autoFocus
-													/>
+														autoFocus															existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}													/>
 												)}
 												<div className="flex gap-2">
 													<button type="submit" className={btnPrimary}>Save</button>
