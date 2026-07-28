@@ -352,7 +352,6 @@ function ItemsTab({
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
-	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
 	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
 	const [editingId, setEditingId] = useState<string | null>(null)
@@ -368,7 +367,6 @@ function ItemsTab({
 			showToast('success', `Item "${name.trim()}" created`)
 			setName('')
 			setAttrRows(keysToRows(attributeKeys))
-			setShowAdd(false)
 			onChanged()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create item')
@@ -407,8 +405,7 @@ function ItemsTab({
 	return (
 		<div className="space-y-4">
 			<SectionCard title="Add Item">
-				{showAdd ? (
-					<form onSubmit={handleAdd} className="space-y-2">
+				<form onSubmit={handleAdd} className="space-y-2">
 					<NewItemFields
 						name={name}
 						setName={setName}
@@ -416,14 +413,10 @@ function ItemsTab({
 						setAttrRows={setAttrRows}
 						autoFocus
 					/>
-						<div className="flex gap-2">
-							<button type="submit" className={btnPrimary}>Create</button>
-							<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
-						</div>
-					</form>
-				) : (
-					<button onClick={() => setShowAdd(true)} className={btnGhost}>+ Add new item</button>
-				)}
+					<div className="flex gap-2">
+						<button type="submit" className={btnPrimary}>Create</button>
+					</div>
+				</form>
 			</SectionCard>
 
 			<SectionCard title="Items" count={items.length}>
