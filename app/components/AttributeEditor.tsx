@@ -49,9 +49,10 @@ export function AttributeEditor({
 }) {
 	const update = (idx: number, patch: Partial<AttrRow>) =>
 		setRows(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
-	const n = rows.length
-	const ti = (group: number, idx: number) =>
-		baseTabIndex !== undefined ? baseTabIndex + group * n + idx : undefined
+	const ti = (group: number, idx: number) => {
+		if (baseTabIndex === undefined) return undefined
+		return group === 1 ? baseTabIndex + idx : -1
+	}
 
 	return (
 		<div>
@@ -90,7 +91,7 @@ export function AttributeEditor({
 				type="button"
 				onClick={() => setRows([...rows, { key: '', value: '' }])}
 				className="mt-1 text-xs text-blue-600 hover:underline"
-				tabIndex={baseTabIndex !== undefined ? baseTabIndex + 3 * n : undefined}
+				tabIndex={baseTabIndex !== undefined ? -1 : undefined}
 			>
 				+ Add attribute
 			</button>
