@@ -26,8 +26,9 @@ export function NewItemFields({
 				onChange={(e) => setName(e.target.value)}
 				placeholder="Item name"
 				autoFocus={autoFocus}
+				tabIndex={1}
 			/>
-			<AttributeEditor rows={attrRows} setRows={setAttrRows} />
+			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={2} />
 		</div>
 	)
 }

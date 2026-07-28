@@ -40,13 +40,18 @@ export function AttributeEditor({
 	rows,
 	setRows,
 	label = 'Custom Attributes',
+	baseTabIndex,
 }: {
 	rows: AttrRow[]
 	setRows: (r: AttrRow[]) => void
 	label?: string
+	baseTabIndex?: number
 }) {
 	const update = (idx: number, patch: Partial<AttrRow>) =>
 		setRows(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+	const n = rows.length
+	const ti = (group: number, idx: number) =>
+		baseTabIndex !== undefined ? baseTabIndex + group * n + idx : undefined
 
 	return (
 		<div>
@@ -59,18 +64,21 @@ export function AttributeEditor({
 							value={row.key}
 							onChange={(e) => update(idx, { key: e.target.value })}
 							placeholder="key"
+							tabIndex={ti(0, idx)}
 						/>
 						<input
 							className={inputCls}
 							value={row.value}
 							onChange={(e) => update(idx, { value: e.target.value })}
 							placeholder="value (comma-separate for list)"
+							tabIndex={ti(1, idx)}
 						/>
 						{rows.length > 1 && (
 							<button
 								type="button"
 								onClick={() => setRows(rows.filter((_, i) => i !== idx))}
 								className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+								tabIndex={ti(2, idx)}
 							>
 								✕
 							</button>
@@ -82,6 +90,7 @@ export function AttributeEditor({
 				type="button"
 				onClick={() => setRows([...rows, { key: '', value: '' }])}
 				className="mt-1 text-xs text-blue-600 hover:underline"
+				tabIndex={baseTabIndex !== undefined ? baseTabIndex + 3 * n : undefined}
 			>
 				+ Add attribute
 			</button>
