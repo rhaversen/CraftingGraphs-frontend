@@ -1,0 +1,17 @@
+{
+	"version": "0.2",
+	"language": "en-US",
+	"ignorePaths": [
+		"node_modules",
+		".next",
+		"out",
+		"build",
+		"next-env.d.ts",
+		"pnpm-lock.yaml"
+	],
+	"ignoreWords": [
+		"craftinggraphs",
+		"xyflow",
+		"geist"
+	]
+}
