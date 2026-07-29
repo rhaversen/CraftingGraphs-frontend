@@ -4,7 +4,7 @@ import { AttributeEditor, type AttrRow } from './AttributeEditor'
 import { Combobox, type ComboboxOption } from './Combobox'
 
 const inputCls =
-	'block w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none'
+	'block w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none'
 
 export function NewItemFields({
 	name,
