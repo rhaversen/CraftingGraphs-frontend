@@ -8,8 +8,9 @@ import type { Bench, Game, Item, Recipe, RecipeSlot } from '../types'
 import { AttributeEditor, type AttrRow, attrsToRows, keysToRows, rowsToAttrs } from '../components/AttributeEditor'
 import { MissingRecipesTab } from '../components/MissingRecipes'
 import { NewItemFields } from '../components/NewItemFields'
+import { CleanupTab } from '../components/CleanupTab'
 
-type TabId = 'games' | 'items' | 'benches' | 'recipes' | 'missing'
+type TabId = 'games' | 'items' | 'benches' | 'recipes' | 'missing' | 'cleanup'
 
 type ToastType = 'success' | 'error'
 interface ToastMsg {
@@ -104,6 +105,7 @@ export default function ManagePage() {
 		{ id: 'benches', label: 'Benches', count: gameBenches.length },
 		{ id: 'recipes', label: 'Recipes', count: gameRecipes.filter((r) => r.outputs.length > 0).length },
 		{ id: 'missing', label: 'Missing', count: 0 },
+		{ id: 'cleanup', label: 'Cleanup', count: 0 },
 	]
 
 	if (loading) {
@@ -189,6 +191,13 @@ export default function ManagePage() {
 					benches={gameBenches}
 					recipes={gameRecipes}
 					attributeKeys={gameAttrKeys}
+					onChanged={refreshAll}
+					showToast={showToast}
+				/>
+			)}
+			{tab === 'cleanup' && selectedGameId && (
+				<CleanupTab
+					items={gameItems}
 					onChanged={refreshAll}
 					showToast={showToast}
 				/>
