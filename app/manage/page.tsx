@@ -176,7 +176,7 @@ export default function ManagePage() {
 					gameId={selectedGameId}
 					items={gameItems}
 					benches={gameBenches}
-					recipes={gameRecipes.filter((r) => r.outputs.length > 0)}
+					recipes={gameRecipes}
 					attributeKeys={gameAttrKeys}
 					onChanged={refreshAll}
 					showToast={showToast}
@@ -690,6 +690,7 @@ function RecipesTab({
 	showToast: (type: ToastType, message: string) => void
 }) {
 	const [showAdd, setShowAdd] = useState(false)
+	const [showNullRecipes, setShowNullRecipes] = useState(false)
 	const [benchId, setBenchId] = useState('')
 	const [inputs, setInputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
 	const [outputs, setOutputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
@@ -802,6 +803,7 @@ function RecipesTab({
 	}
 
 	const noItemsOrBenches = items.length === 0 || benches.length === 0
+	const visibleRecipes = showNullRecipes ? recipes : recipes.filter((r) => r.outputs.length > 0)
 
 	return (
 		<div className="space-y-4">
@@ -828,12 +830,23 @@ function RecipesTab({
 				)}
 			</SectionCard>
 
-			<SectionCard title="Recipes" count={recipes.length}>
-				{recipes.length === 0 ? (
+			<SectionCard title="Recipes" count={visibleRecipes.length}>
+				<div className="flex items-center gap-2 pb-2">
+					<label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+						<input
+							type="checkbox"
+							checked={showNullRecipes}
+							onChange={(e) => setShowNullRecipes(e.target.checked)}
+							className="accent-blue-600"
+						/>
+						Show null-output recipes
+					</label>
+			</div>
+				{visibleRecipes.length === 0 ? (
 					<EmptyState message="No recipes yet. Create one above." />
 				) : (
 					<div className="space-y-1">
-						{recipes.map((r) => (
+						{visibleRecipes.map((r) => (
 							<div key={r.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === r.id ? (
 									<div className="space-y-2">
