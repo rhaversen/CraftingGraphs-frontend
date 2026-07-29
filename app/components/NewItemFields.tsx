@@ -8,6 +8,8 @@ const inputCls =
 export function NewItemFields({
 	name,
 	setName,
+	category,
+	setCategory,
 	attrRows,
 	setAttrRows,
 	autoFocus,
@@ -16,6 +18,8 @@ export function NewItemFields({
 }: {
 	name: string
 	setName: (s: string) => void
+	category: string
+	setCategory: (s: string) => void
 	attrRows: AttrRow[]
 	setAttrRows: (r: AttrRow[]) => void
 	autoFocus?: boolean
@@ -38,7 +42,14 @@ export function NewItemFields({
 			{isDuplicate && (
 				<p className="text-xs text-red-600 dark:text-red-400">An item with this name already exists</p>
 			)}
-			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={2} />
+			<input
+				className={inputCls}
+				value={category}
+				onChange={(e) => setCategory(e.target.value)}
+				placeholder="Category (optional)"
+				tabIndex={2}
+			/>
+			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={3} />
 		</div>
 	)
 }

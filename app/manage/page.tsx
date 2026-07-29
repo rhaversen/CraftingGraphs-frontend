@@ -4,7 +4,7 @@ import { useState, useRef, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../components/GameDataProvider'
 import { api } from '../api'
-import type { Bench, Game, Item, Recipe, RecipeSlot } from '../types'
+import type { Bench, BenchInput, Game, Item, Recipe, RecipeSlot } from '../types'
 import { AttributeEditor, type AttrRow, attrsToRows, keysToRows, rowsToAttrs } from '../components/AttributeEditor'
 import { MissingRecipesTab } from '../components/MissingRecipes'
 import { NewItemFields } from '../components/NewItemFields'
@@ -362,9 +362,11 @@ function ItemsTab({
 	showToast: (type: ToastType, message: string) => void
 }) {
 	const [name, setName] = useState('')
+	const [category, setCategory] = useState('')
 	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
+	const [editCategory, setEditCategory] = useState('')
 	const [editAttrRows, setEditAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const nameRef = useRef<HTMLInputElement>(null)
@@ -373,9 +375,10 @@ function ItemsTab({
 		e.preventDefault()
 		if (!name.trim()) return
 		try {
-			await api.items.create({ name: name.trim(), attributes: rowsToAttrs(attrRows), gameId })
+			await api.items.create({ name: name.trim(), attributes: rowsToAttrs(attrRows), category: category.trim() || null, gameId })
 			showToast('success', `Item "${name.trim()}" created`)
 			setName('')
+			setCategory('')
 			setAttrRows(keysToRows(attributeKeys))
 			onChanged()
 			nameRef.current?.focus()
@@ -387,13 +390,14 @@ function ItemsTab({
 	const startEdit = (it: Item) => {
 		setEditingId(it.id)
 		setEditName(it.name ?? '')
+		setEditCategory(it.category ?? '')
 		setEditAttrRows(attrsToRows(it.attributes))
 		setConfirmId(null)
 	}
 
 	const handleSave = async (id: string) => {
 		try {
-			await api.items.update(id, { name: editName.trim(), attributes: rowsToAttrs(editAttrRows) })
+			await api.items.update(id, { name: editName.trim(), attributes: rowsToAttrs(editAttrRows), category: editCategory.trim() || null })
 			showToast('success', 'Item updated')
 			setEditingId(null)
 			onChanged()
@@ -421,6 +425,8 @@ function ItemsTab({
 						ref={nameRef}
 						name={name}
 						setName={setName}
+						category={category}
+						setCategory={setCategory}
 						attrRows={attrRows}
 						setAttrRows={setAttrRows}
 						autoFocus
@@ -442,7 +448,8 @@ function ItemsTab({
 								{editingId === it.id ? (
 									<div className="space-y-2">
 										<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
-										<AttributeEditor rows={editAttrRows} setRows={setEditAttrRows} />
+									<input className={inputCls} value={editCategory} onChange={(e) => setEditCategory(e.target.value)} placeholder="Category (optional)" />
+									<AttributeEditor rows={editAttrRows} setRows={setEditAttrRows} />
 										<div className="flex gap-2">
 											<button onClick={() => handleSave(it.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
@@ -456,8 +463,7 @@ function ItemsTab({
 									</div>
 								) : (
 									<div className="group flex items-center gap-2">
-							<span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{it.name ?? it.id}</span>
-
+							<span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{it.name ?? it.id}</span>						{it.category && <span className="text-xs text-gray-400">{it.category}</span>}
 										<button onClick={() => startEdit(it)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
 										<button onClick={() => setConfirmId(it.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
 									</div>
@@ -473,6 +479,50 @@ function ItemsTab({
 
 // ─── Benches Tab ──────────────────────────────────────────
 
+function BenchInputsEditor({
+	inputs,
+	setInputs,
+}: {
+	inputs: BenchInput[]
+	setInputs: (inputs: BenchInput[]) => void
+}) {
+	const update = (i: number, patch: Partial<BenchInput>) => {
+		setInputs(inputs.map((inp, idx) => (idx === i ? { ...inp, ...patch } : inp)))
+	}
+	const remove = (i: number) => {
+		setInputs(inputs.filter((_, idx) => idx !== i))
+	}
+	const add = () => {
+		setInputs([...inputs, { category: null, required: false }])
+	}
+
+	return (
+		<div className="space-y-1">
+			<div className="text-xs font-medium text-gray-500 dark:text-gray-400">Input slots</div>
+			{inputs.map((inp, i) => (
+				<div key={i} className="flex flex-wrap items-center gap-1">
+					<input
+						className={`${inputCls} w-28`}
+						value={inp.category ?? ''}
+						onChange={(e) => update(i, { category: e.target.value || null })}
+						placeholder="Category"
+					/>
+					<label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+						<input
+							type="checkbox"
+							checked={inp.required}
+							onChange={(e) => update(i, { required: e.target.checked })}
+						/>
+						req
+					</label>
+					<button type="button" onClick={() => remove(i)} className="text-xs text-red-500 hover:text-red-700">×</button>
+				</div>
+			))}
+			<button type="button" onClick={add} className={btnGhost}>+ Add input slot</button>
+		</div>
+	)
+}
+
 function BenchesTab({
 	gameId,
 	benches,
@@ -486,20 +536,20 @@ function BenchesTab({
 }) {
 	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
-	const [inputCount, setInputCount] = useState('')
+	const [inputs, setInputs] = useState<BenchInput[]>([])
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
-	const [editInputCount, setEditInputCount] = useState('')
+	const [editInputs, setEditInputs] = useState<BenchInput[]>([])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!name.trim()) return
 		try {
-			await api.benches.create({ name: name.trim(), inputCount: Number(inputCount) || null, gameId })
+			await api.benches.create({ name: name.trim(), inputs, gameId })
 			showToast('success', `Bench "${name.trim()}" created`)
 			setName('')
-			setInputCount('')
+			setInputs([])
 			setShowAdd(false)
 			onChanged()
 		} catch (err) {
@@ -510,13 +560,13 @@ function BenchesTab({
 	const startEdit = (b: Bench) => {
 		setEditingId(b.id)
 		setEditName(b.name ?? '')
-		setEditInputCount(b.inputCount != null ? String(b.inputCount) : '')
+		setEditInputs(b.inputs.map((inp) => ({ category: inp.category, required: inp.required })))
 		setConfirmId(null)
 	}
 
 	const handleSave = async (id: string) => {
 		try {
-			await api.benches.update(id, { name: editName.trim(), inputCount: Number(editInputCount) || null })
+			await api.benches.update(id, { name: editName.trim(), inputs: editInputs })
 			showToast('success', 'Bench updated')
 			setEditingId(null)
 			onChanged()
@@ -542,7 +592,7 @@ function BenchesTab({
 				{showAdd ? (
 					<form onSubmit={handleAdd} className="space-y-2">
 					<input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Bench name" autoFocus />
-					<input className={inputCls} type="number" min="0" value={inputCount} onChange={(e) => setInputCount(e.target.value)} placeholder="Input count (optional)" />
+					<BenchInputsEditor inputs={inputs} setInputs={setInputs} />
 					<div className="flex gap-2">
 						<button type="submit" className={btnPrimary}>Create</button>
 						<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
@@ -563,7 +613,7 @@ function BenchesTab({
 								{editingId === b.id ? (
 									<div className="space-y-2">
 									<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
-									<input className={inputCls} type="number" min="0" value={editInputCount} onChange={(e) => setEditInputCount(e.target.value)} placeholder="Input count (optional)" />
+							<BenchInputsEditor inputs={editInputs} setInputs={setEditInputs} />
 									<div className="flex gap-2">
 											<button onClick={() => handleSave(b.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
@@ -578,7 +628,7 @@ function BenchesTab({
 								) : (
 									<div className="group flex items-center gap-2">
 							<span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{b.name ?? b.id}</span>
-							{b.inputCount != null && <span className="text-xs text-gray-400">{b.inputCount} inputs</span>}
+						{b.inputs.length > 0 && <span className="text-xs text-gray-400">{b.inputs.length} inputs</span>}
 										<button onClick={() => startEdit(b)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
 										<button onClick={() => setConfirmId(b.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
 									</div>
@@ -599,6 +649,7 @@ interface SlotRow {
 	count: string
 	isNew?: boolean
 	newName?: string
+	newCategory?: string
 	newAttrRows?: AttrRow[]
 }
 
@@ -657,6 +708,8 @@ function SlotEditor({
 							<NewItemFields
 								name={row.newName ?? ''}
 								setName={(s) => updateSlot(arr, setArr, idx, { newName: s })}
+								category={row.newCategory ?? ''}
+								setCategory={(s) => updateSlot(arr, setArr, idx, { newCategory: s })}
 								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
 								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
 							existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
@@ -721,6 +774,7 @@ function RecipesTab({
 						gameId,
 						name: row.newName.trim(),
 						attributes: rowsToAttrs(row.newAttrRows ?? []),
+						category: row.newCategory?.trim() || null,
 					})
 					slots.push({ item: created.id, count: Number(row.count) || 1 })
 				} catch (err) {

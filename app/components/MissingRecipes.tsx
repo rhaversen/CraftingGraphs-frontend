@@ -8,29 +8,17 @@ import { NewItemFields } from './NewItemFields'
 
 type ToastType = 'success' | 'error'
 
-function nCr(n: number, k: number): number {
-	if (k < 0 || k > n) return 0
-	if (k === 0 || k === n) return 1
-	let result = 1
-	for (let i = 0; i < k; i++) {
-		result = (result * (n - i)) / (i + 1)
-	}
-	return Math.round(result)
-}
-
-function combinations<T>(arr: T[], k: number): T[][] {
-	if (k === 0) return [[]]
-	if (k > arr.length) return []
-	const result: T[][] = []
-	const indices = Array.from({ length: k }, (_, i) => i)
-	result.push(indices.map((i) => arr[i]))
-	while (true) {
-		let i = k - 1
-		while (i >= 0 && indices[i] === arr.length - k + i) i--
-		if (i < 0) break
-		indices[i]++
-		for (let j = i + 1; j < k; j++) indices[j] = indices[j - 1] + 1
-		result.push(indices.map((idx) => arr[idx]))
+function cartesianProduct<T>(arrays: T[][]): T[][] {
+	if (arrays.length === 0) return [[]]
+	let result: T[][] = [[]]
+	for (const arr of arrays) {
+		const next: T[][] = []
+		for (const r of result) {
+			for (const item of arr) {
+				next.push([...r, item])
+			}
+		}
+		result = next
 	}
 	return result
 }
@@ -63,7 +51,7 @@ export function MissingRecipesTab({
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
-	const benchesWithInputCount = benches.filter((b) => b.inputCount !== null && b.inputCount !== undefined)
+
 	const [selectedBenchId, setSelectedBenchId] = useState('')
 	const [displayLimit, setDisplayLimit] = useState(DISPLAY_BATCH)
 	const [creatingFor, setCreatingFor] = useState<string | null>(null)
@@ -71,33 +59,49 @@ export function MissingRecipesTab({
 	const [outputCount, setOutputCount] = useState('1')
 	const [outputMode, setOutputMode] = useState<'existing' | 'new'>('existing')
 	const [newItemName, setNewItemName] = useState('')
+	const [newItemCategory, setNewItemCategory] = useState('')
 	const [newItemAttrRows, setNewItemAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
 
 	const selectedBench = benches.find((b) => b.id === selectedBenchId)
-	const inputCount = selectedBench?.inputCount ?? 0
 
 	const { missing, total, covered } = useMemo(() => {
-		if (!selectedBench || inputCount === null) return { missing: [], total: 0, covered: 0 }
+		if (!selectedBench || selectedBench.inputs.length === 0) return { missing: [], total: 0, covered: 0 }
+
 		const benchRecipes = recipes.filter((r) => r.benchId === selectedBenchId)
 		const existingSigs = new Set(benchRecipes.map((r) => recipeSignature(r.inputs.map((i) => i.item))))
 
-		const totalCombos = nCr(items.length, inputCount)
-		if (totalCombos === 0) return { missing: [], total: 0, covered: 0 }
-		if (totalCombos > 100000) return { missing: [], total: totalCombos, covered: 0 }
+		// For each input slot, determine the pool of candidate items (filtered by category if set).
+		// For optional slots, null represents "no item" — we use a sentinel.
+		const slotItemPools: (Item | null)[][] = selectedBench.inputs.map((slot) => {
+			const pool = slot.category
+				? items.filter((it) => it.category === slot.category)
+				: items.slice()
+			return slot.required ? pool : [null, ...pool]
+		})
 
-		const allCombos = combinations(items, inputCount)
+		// Cap explosion: if total combos > 100000, bail
+		let totalCombos = 1
+		for (const p of slotItemPools) totalCombos *= p.length
+		if (totalCombos > 100000) return { missing: [], total: totalCombos, covered: 0 }
+		if (totalCombos === 0) return { missing: [], total: 0, covered: 0 }
+
+		const allCombos = cartesianProduct(slotItemPools)
 		const missingCombos: MissingCombination[] = []
 		let coveredCount = 0
 		for (const combo of allCombos) {
-			const sig = recipeSignature(combo.map((i) => i.id))
+			// Skip the all-null combo (no items at all) — that's not a recipe
+			if (combo.every((it) => it === null)) continue
+			const itemIds = combo
+				.map((it) => (it === null ? '__none__' : it.id))
+			const sig = recipeSignature(itemIds)
 			if (existingSigs.has(sig)) {
 				coveredCount++
 			} else {
-				missingCombos.push({ items: combo, signature: sig })
+				missingCombos.push({ items: combo.filter((it): it is Item => it !== null), signature: sig })
 			}
 		}
 		return { missing: missingCombos, total: totalCombos, covered: coveredCount }
-	}, [selectedBench, selectedBenchId, inputCount, items, recipes])
+	}, [selectedBench, selectedBenchId, items, recipes])
 
 	const handleMarkInvalid = async (combo: MissingCombination) => {
 		if (!selectedBench) return
@@ -125,7 +129,7 @@ export function MissingRecipesTab({
 				return
 			}
 			try {
-				const created = await api.items.create({ name: newItemName.trim(), attributes: rowsToAttrs(newItemAttrRows), gameId })
+				const created = await api.items.create({ name: newItemName.trim(), attributes: rowsToAttrs(newItemAttrRows), category: newItemCategory.trim() || null, gameId })
 				outputId = created.id
 			} catch (err) {
 				showToast('error', err instanceof Error ? err.message : 'Failed to create item')
@@ -162,11 +166,13 @@ export function MissingRecipesTab({
 	const btnGhost =
 		'rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
 
-	if (benchesWithInputCount.length === 0) {
+	const benchesWithInputs = benches.filter((b) => b.inputs.length > 0)
+
+	if (benchesWithInputs.length === 0) {
 		return (
 			<div className="space-y-4">
 				<div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-3 text-sm text-amber-700 dark:text-amber-300">
-					No benches have an input count set. Set the input count on a bench to enable missing recipe detection.
+					No benches have input slots configured. Add input slots to a bench to enable missing recipe detection.
 				</div>
 			</div>
 		)
@@ -188,9 +194,9 @@ export function MissingRecipesTab({
 							}}
 						>
 							<option value="">Select bench...</option>
-							{benchesWithInputCount.map((b) => (
+							{benchesWithInputs.map((b) => (
 								<option key={b.id} value={b.id}>
-									{b.name ?? b.id} ({b.inputCount} inputs)
+									{b.name ?? b.id} ({b.inputs.length} inputs)
 								</option>
 							))}
 						</select>
@@ -271,6 +277,8 @@ export function MissingRecipesTab({
 													<NewItemFields
 														name={newItemName}
 														setName={setNewItemName}
+														category={newItemCategory}
+														setCategory={setNewItemCategory}
 														attrRows={newItemAttrRows}
 														setAttrRows={setNewItemAttrRows}
 														autoFocus															existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}													/>
@@ -286,6 +294,7 @@ export function MissingRecipesTab({
 															setOutputCount('1')
 															setOutputMode('existing')
 																setNewItemName('')
+																setNewItemCategory('')
 															setNewItemAttrRows(keysToRows(attributeKeys))
 														}}
 													>Cancel</button>
@@ -303,6 +312,7 @@ export function MissingRecipesTab({
 														setOutputCount('1')
 													setOutputMode('existing')
 													setNewItemName('')
+													setNewItemCategory('')
 													setNewItemAttrRows(keysToRows(attributeKeys))
 												}}
 													className={btnGhost}

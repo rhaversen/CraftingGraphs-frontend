@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '../api'
-import type { Bench, Item, Recipe } from '../types'
+import type { Bench, BenchInput, Item, Recipe } from '../types'
 import { AttributeEditor, type AttrRow, rowsToAttrs } from './AttributeEditor'
 
 interface FormsProps {
@@ -222,6 +222,49 @@ function ItemForm({
 	)
 }
 
+function BenchInputsEditor({
+	inputs,
+	setInputs,
+}: {
+	inputs: BenchInput[]
+	setInputs: (inputs: BenchInput[]) => void
+}) {
+	const update = (i: number, patch: Partial<BenchInput>) => {
+		setInputs(inputs.map((inp, idx) => (idx === i ? { ...inp, ...patch } : inp)))
+	}
+	const remove = (i: number) => {
+		setInputs(inputs.filter((_, idx) => idx !== i))
+	}
+	const add = () => {
+		setInputs([...inputs, { category: null, required: false }])
+	}
+
+	return (
+		<div className="space-y-1">
+			{inputs.map((inp, i) => (
+				<div key={i} className="flex flex-wrap items-center gap-1">
+					<input
+						className={`${inputCls} w-28`}
+						value={inp.category ?? ''}
+						onChange={(e) => update(i, { category: e.target.value || null })}
+						placeholder="Category"
+					/>
+					<label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+						<input
+							type="checkbox"
+							checked={inp.required}
+							onChange={(e) => update(i, { required: e.target.checked })}
+						/>
+						req
+					</label>
+					<button type="button" onClick={() => remove(i)} className="text-xs text-red-500 hover:text-red-700">×</button>
+				</div>
+			))}
+			<button type="button" onClick={add} className="text-xs text-blue-600 hover:text-blue-700">+ Add input slot</button>
+		</div>
+	)
+}
+
 function BenchForm({
 	gameId,
 	onChanged,
@@ -232,16 +275,16 @@ function BenchForm({
 	showToast: ToastFn
 }) {
 	const [name, setName] = useState('')
-	const [inputCount, setInputCount] = useState('')
+	const [inputs, setInputs] = useState<BenchInput[]>([])
 
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!name.trim()) return
 		try {
-			await api.benches.create({ name: name.trim(), inputCount: Number(inputCount) || null, gameId })
+			await api.benches.create({ name: name.trim(), inputs, gameId })
 			showToast('success', `Bench "${name.trim()}" created`)
 			setName('')
-			setInputCount('')
+			setInputs([])
 			onChanged()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create bench')
@@ -258,15 +301,8 @@ function BenchForm({
 					placeholder="Furnace"
 				/>
 			</Field>
-			<Field label="Input Count (optional)">
-				<input
-					className={inputCls}
-					type="number"
-					min="0"
-					value={inputCount}
-					onChange={(e) => setInputCount(e.target.value)}
-					placeholder="Number of inputs this bench accepts"
-				/>
+			<Field label="Input Slots (optional)">
+				<BenchInputsEditor inputs={inputs} setInputs={setInputs} />
 			</Field>
 		</CollapsibleForm>
 	)

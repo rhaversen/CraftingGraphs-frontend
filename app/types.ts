@@ -12,13 +12,19 @@ export interface Item {
 	id: string
 	name: string | null
 	attributes: Attributes
+	category: string | null
 	gameId: string
+}
+
+export interface BenchInput {
+	category: string | null
+	required: boolean
 }
 
 export interface Bench {
 	id: string
 	name: string | null
-	inputCount: number | null
+	inputs: BenchInput[]
 	gameId: string
 }
 

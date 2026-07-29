@@ -20,11 +20,11 @@ let idCounter = 0
 const uid = (p: string) => `${p}${idCounter++}`
 
 function makeItem(name: string): Item {
-	return { id: uid('i'), name, attributes: {}, gameId: 'test' }
+	return { id: uid('i'), name, attributes: {}, category: null, gameId: 'test' }
 }
 
 function makeBench(name: string): Bench {
-	return { id: uid('b'), name, inputCount: null, gameId: 'test' }
+	return { id: uid('b'), name, inputs: [], gameId: 'test' }
 }
 
 function makeRecipe(benchId: string, inputs: Item[], outputs: Item[]): Recipe {

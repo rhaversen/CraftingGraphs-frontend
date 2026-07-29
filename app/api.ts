@@ -1,4 +1,4 @@
-import type { Attributes, Bench, Game, Item, Recipe } from './types'
+import type { Attributes, Bench, BenchInput, Game, Item, Recipe } from './types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3001'
 
@@ -40,11 +40,11 @@ export const api = {
 		list: (gameId?: string) =>
 			request<Item[]>(`/api/v1/items${buildQuery({ gameId })}`),
 		get: (id: string) => request<Item>(`/api/v1/items/${id}`),
-		create: (data: { name: string | null; attributes?: Attributes; gameId: string }) =>
+		create: (data: { name: string | null; attributes?: Attributes; category?: string | null; gameId: string }) =>
 			request<Item>('/api/v1/items', { method: 'POST', body: JSON.stringify(data) }),
 		update: (
 			id: string,
-			data: Partial<Pick<Item, 'name' | 'attributes' | 'gameId'>>,
+			data: Partial<Pick<Item, 'name' | 'attributes' | 'category' | 'gameId'>>,
 		) =>
 			request<Item>(`/api/v1/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 		delete: (id: string) =>
@@ -54,9 +54,9 @@ export const api = {
 		list: (gameId?: string) =>
 			request<Bench[]>(`/api/v1/benches${buildQuery({ gameId })}`),
 		get: (id: string) => request<Bench>(`/api/v1/benches/${id}`),
-		create: (data: { name: string | null; inputCount?: number | null; gameId: string }) =>
+		create: (data: { name: string | null; inputs?: BenchInput[]; gameId: string }) =>
 			request<Bench>('/api/v1/benches', { method: 'POST', body: JSON.stringify(data) }),
-		update: (id: string, data: Partial<Pick<Bench, 'name' | 'inputCount' | 'gameId'>>) =>
+		update: (id: string, data: Partial<Pick<Bench, 'name' | 'inputs' | 'gameId'>>) =>
 			request<Bench>(`/api/v1/benches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 		delete: (id: string) =>
 			request<void>(`/api/v1/benches/${id}`, { method: 'DELETE' }),
