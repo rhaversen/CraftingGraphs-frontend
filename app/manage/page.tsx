@@ -488,7 +488,7 @@ function ItemsTab({
 												{it.attributes && Object.keys(it.attributes).length > 0 && (
 													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
 														<span className="inline-block w-20 font-medium">Attributes:</span>
-														<span className="inline-block truncate align-bottom">{Object.keys(it.attributes).join(', ')}</span>
+														<span className="inline-block truncate align-bottom">{Object.entries(it.attributes).map(([k, v]) => `${k}${Array.isArray(v) ? ` (${v.length})` : ''}`).join(', ')}</span>
 													</span>
 												)}
 											</span>
