@@ -69,6 +69,7 @@ function hasLetters(s: string): boolean {
 function analyze(items: Item[]): Analysis {
 	const byKey: Analysis = new Map()
 	for (const item of items) {
+		if (!item.attributes) continue
 		for (const [key, val] of Object.entries(item.attributes)) {
 			if (!byKey.has(key)) byKey.set(key, new Map())
 			const valMap = byKey.get(key)!
