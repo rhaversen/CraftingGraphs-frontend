@@ -10,6 +10,7 @@ import { MissingRecipesTab } from '../components/MissingRecipes'
 import { NewItemFields } from '../components/NewItemFields'
 import { CleanupTab } from '../components/CleanupTab'
 import { ExpandableRow, useExpanded } from '../components/ExpandableRow'
+import { Combobox, type ComboboxOption } from '../components/Combobox'
 
 type TabId = 'games' | 'items' | 'benches' | 'recipes' | 'missing' | 'cleanup'
 
@@ -170,6 +171,7 @@ export default function ManagePage() {
 				<BenchesTab
 					gameId={selectedGameId}
 					benches={gameBenches}
+					items={gameItems}
 					onChanged={refreshAll}
 					showToast={showToast}
 				/>
@@ -439,6 +441,7 @@ function ItemsTab({
 						setAttrRows={setAttrRows}
 						autoFocus
 						existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
+						categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
 					/>
 					<div className="flex gap-2">
 						<button type="submit" className={btnPrimary}>Create</button>
@@ -526,9 +529,11 @@ function ItemsTab({
 function BenchInputsEditor({
 	inputs,
 	setInputs,
+	categories,
 }: {
 	inputs: BenchInput[]
 	setInputs: (inputs: BenchInput[]) => void
+	categories: ComboboxOption[]
 }) {
 	const update = (i: number, patch: Partial<BenchInput>) => {
 		setInputs(inputs.map((inp, idx) => (idx === i ? { ...inp, ...patch } : inp)))
@@ -545,10 +550,11 @@ function BenchInputsEditor({
 			<div className="text-xs font-medium text-gray-500 dark:text-gray-400">Input slots</div>
 			{inputs.map((inp, i) => (
 				<div key={i} className="flex flex-wrap items-center gap-1">
-					<input
+					<Combobox
 						className={`${inputCls} w-28`}
 						value={inp.category ?? ''}
-						onChange={(e) => update(i, { category: e.target.value || null })}
+						onChange={(v) => update(i, { category: v || null })}
+						options={categories}
 						placeholder="Category"
 					/>
 					<label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -570,15 +576,16 @@ function BenchInputsEditor({
 function BenchesTab({
 	gameId,
 	benches,
+	items,
 	onChanged,
 	showToast,
 }: {
 	gameId: string
 	benches: Bench[]
+	items: Item[]
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
-	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
 	const [inputs, setInputs] = useState<BenchInput[]>([])
 	const [editingId, setEditingId] = useState<string | null>(null)
@@ -586,6 +593,12 @@ function BenchesTab({
 	const [editInputs, setEditInputs] = useState<BenchInput[]>([])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
+
+	const categorySet = new Set<string>()
+	for (const it of items) {
+		if (it.category) categorySet.add(it.category)
+	}
+	const categoryOptions: ComboboxOption[] = [...categorySet].sort().map((c) => ({ value: c, label: c }))
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -595,7 +608,6 @@ function BenchesTab({
 			showToast('success', `Bench "${name.trim()}" created`)
 			setName('')
 			setInputs([])
-			setShowAdd(false)
 			onChanged()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create bench')
@@ -634,18 +646,11 @@ function BenchesTab({
 	return (
 		<div className="space-y-4">
 			<SectionCard title="Add Bench">
-				{showAdd ? (
-					<form onSubmit={handleAdd} className="space-y-2">
+				<form onSubmit={handleAdd} className="space-y-2">
 					<input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Bench name" autoFocus />
-					<BenchInputsEditor inputs={inputs} setInputs={setInputs} />
-					<div className="flex gap-2">
-						<button type="submit" className={btnPrimary}>Create</button>
-						<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
-					</div>
+					<BenchInputsEditor inputs={inputs} setInputs={setInputs} categories={categoryOptions} />
+					<button type="submit" className={btnPrimary}>Create</button>
 				</form>
-				) : (
-					<button onClick={() => setShowAdd(true)} className={btnGhost}>+ Add new bench</button>
-				)}
 			</SectionCard>
 
 			<SectionCard title="Benches" count={benches.length}>
@@ -658,7 +663,7 @@ function BenchesTab({
 								{editingId === b.id ? (
 									<div className="space-y-2">
 									<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
-							<BenchInputsEditor inputs={editInputs} setInputs={setEditInputs} />
+							<BenchInputsEditor inputs={editInputs} setInputs={setEditInputs} categories={categoryOptions} />
 									<div className="flex gap-2">
 											<button onClick={() => handleSave(b.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
@@ -787,18 +792,16 @@ function SlotEditor({
 								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
 								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
 							existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
-							/>
-						) : (
-							<select
+							categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
+						/>
+					) : (
+							<Combobox
 								className={inputCls}
 								value={row.item}
-								onChange={(e) => updateSlot(arr, setArr, idx, { item: e.target.value })}
-							>
-								<option value="">Select item...</option>
-								{items.map((it) => (
-									<option key={it.id} value={it.id}>{it.name}</option>
-								))}
-							</select>
+								onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
+								options={items.map((it) => ({ value: it.id, label: it.name ?? it.id }))}
+								placeholder="Search item..."
+							/>
 						)}
 					</div>
 				))}
@@ -825,7 +828,6 @@ function RecipesTab({
 	onChanged: () => void
 	showToast: (type: ToastType, message: string) => void
 }) {
-	const [showAdd, setShowAdd] = useState(false)
 	const [showNullRecipes, setShowNullRecipes] = useState(false)
 	const [benchId, setBenchId] = useState('')
 	const [inputs, setInputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
@@ -884,7 +886,6 @@ function RecipesTab({
 			setBenchId('')
 			setInputs([{ item: '', count: '1' }])
 			setOutputs([{ item: '', count: '1' }])
-			setShowAdd(false)
 			onChanged()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create recipe')
@@ -959,23 +960,19 @@ function RecipesTab({
 			<SectionCard title="Add Recipe">
 				{noItemsOrBenches ? (
 					<EmptyState message="Create at least one item and one bench before adding a recipe." />
-				) : showAdd ? (
-					<form onSubmit={handleAdd} className="space-y-2">
-						<select className={inputCls} value={benchId} onChange={(e) => setBenchId(e.target.value)}>
-							<option value="">Select bench...</option>
-							{benches.map((b) => (
-								<option key={b.id} value={b.id}>{b.name}</option>
-							))}
-						</select>
-					<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
-					<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
-						<div className="flex gap-2">
-							<button type="submit" className={btnPrimary}>Create</button>
-							<button type="button" className={btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>
-						</div>
-					</form>
 				) : (
-					<button onClick={() => setShowAdd(true)} className={btnGhost}>+ Add new recipe</button>
+					<form onSubmit={handleAdd} className="space-y-2">
+						<Combobox
+							className={inputCls}
+							value={benchId}
+							onChange={setBenchId}
+							options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+							placeholder="Search bench..."
+						/>
+						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
+						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
+						<button type="submit" className={btnPrimary}>Create</button>
+					</form>
 				)}
 			</SectionCard>
 
@@ -999,12 +996,13 @@ function RecipesTab({
 							<div key={r.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === r.id ? (
 									<div className="space-y-2">
-									<select className={inputCls} value={editBenchId} onChange={(e) => setEditBenchId(e.target.value)}>
-										<option value="">Select bench...</option>
-										{benches.map((b) => (
-											<option key={b.id} value={b.id}>{b.name}</option>
-										))}
-									</select>
+									<Combobox
+										className={inputCls}
+										value={editBenchId}
+										onChange={setEditBenchId}
+										options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+										placeholder="Search bench..."
+									/>
 <SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
 					<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
 
