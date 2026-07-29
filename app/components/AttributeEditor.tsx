@@ -61,14 +61,14 @@ export function AttributeEditor({
 				{rows.map((row, idx) => (
 					<div key={idx} className="flex gap-1">
 						<input
-							className={inputCls}
+							className={`${inputCls} w-32 shrink-0`}
 							value={row.key}
 							onChange={(e) => update(idx, { key: e.target.value })}
 							placeholder="key"
 							tabIndex={ti(0, idx)}
 						/>
 						<input
-							className={inputCls}
+							className={`${inputCls} flex-1`}
 							value={row.value}
 							onChange={(e) => update(idx, { value: e.target.value })}
 							placeholder="value (comma-separate for list)"
