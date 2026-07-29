@@ -9,6 +9,7 @@ import { AttributeEditor, type AttrRow, attrsToRows, keysToRows, rowsToAttrs } f
 import { MissingRecipesTab } from '../components/MissingRecipes'
 import { NewItemFields } from '../components/NewItemFields'
 import { CleanupTab } from '../components/CleanupTab'
+import { ExpandableRow, useExpanded } from '../components/ExpandableRow'
 
 type TabId = 'games' | 'items' | 'benches' | 'recipes' | 'missing' | 'cleanup'
 
@@ -369,7 +370,14 @@ function ItemsTab({
 	const [editCategory, setEditCategory] = useState('')
 	const [editAttrRows, setEditAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
+	const { expandedIds, toggleExpand } = useExpanded()
 	const nameRef = useRef<HTMLInputElement>(null)
+	const sortedItems = [...items].sort((a, b) => {
+		const ca = a.category ?? '~'
+		const cb = b.category ?? '~'
+		if (ca !== cb) return ca.localeCompare(cb)
+		return (a.name ?? '').localeCompare(b.name ?? '')
+	})
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -443,7 +451,7 @@ function ItemsTab({
 					<EmptyState message="No items yet. Create one above." />
 				) : (
 					<div className="space-y-1">
-						{items.map((it) => (
+						{sortedItems.map((it) => (
 							<div key={it.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === it.id ? (
 									<div className="space-y-2">
@@ -462,11 +470,47 @@ function ItemsTab({
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
-									<div className="group flex items-center gap-2">
-							<span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{it.name ?? it.id}</span>						{it.category && <span className="text-xs text-gray-400">{it.category}</span>}
-										<button onClick={() => startEdit(it)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
-										<button onClick={() => setConfirmId(it.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
-									</div>
+									<ExpandableRow
+										isExpanded={expandedIds.has(it.id)}
+										onToggle={() => toggleExpand(it.id)}
+										summary={
+											<span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+												<span className="inline-block w-40 truncate align-bottom">{it.name ?? it.id}</span>
+												{it.category && (
+													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
+														<span className="inline-block w-20 font-medium">Category:</span>
+														<span className="inline-block w-28 truncate align-bottom">{it.category}</span>
+													</span>
+												)}
+												{it.attributes && Object.keys(it.attributes).length > 0 && (
+													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
+														<span className="inline-block w-20 font-medium">Attributes:</span>
+														<span className="inline-block truncate align-bottom">{Object.keys(it.attributes).join(', ')}</span>
+													</span>
+												)}
+											</span>
+										}
+										details={
+											<div className="space-y-1">
+												{it.attributes && Object.keys(it.attributes).length > 0 ? (
+													Object.entries(it.attributes).map(([k, v]) => (
+														<div key={k} className="flex gap-2">
+															<span className="font-medium text-gray-500 dark:text-gray-500">{k}:</span>
+															<span>{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+														</div>
+													))
+												) : (
+													<span className="text-xs text-gray-400">No attributes</span>
+												)}
+											</div>
+										}
+										actions={
+											<>
+												<button onClick={() => startEdit(it)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
+												<button onClick={() => setConfirmId(it.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
+											</>
+										}
+									/>
 								)}
 							</div>
 						))}
@@ -541,6 +585,7 @@ function BenchesTab({
 	const [editName, setEditName] = useState('')
 	const [editInputs, setEditInputs] = useState<BenchInput[]>([])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
+	const { expandedIds, toggleExpand } = useExpanded()
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -608,7 +653,7 @@ function BenchesTab({
 					<EmptyState message="No benches yet. Create one above." />
 				) : (
 					<div className="space-y-1">
-						{benches.map((b) => (
+						{[...benches].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')).map((b) => (
 							<div key={b.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === b.id ? (
 									<div className="space-y-2">
@@ -626,12 +671,41 @@ function BenchesTab({
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
-									<div className="group flex items-center gap-2">
-							<span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{b.name ?? b.id}</span>
-						{b.inputs.length > 0 && <span className="text-xs text-gray-400">{b.inputs.length} inputs</span>}
-										<button onClick={() => startEdit(b)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
-										<button onClick={() => setConfirmId(b.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
-									</div>
+									<ExpandableRow
+										isExpanded={expandedIds.has(b.id)}
+										onToggle={() => toggleExpand(b.id)}
+										summary={
+											<span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+												<span className="inline-block w-40 truncate align-bottom">{b.name ?? b.id}</span>
+												{b.inputs.length > 0 && (
+													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
+														<span className="inline-block w-20 font-medium">Inputs:</span>
+														<span className="inline-block truncate align-bottom">{b.inputs.map((inp) => inp.category ?? 'any').join(', ')}</span>
+													</span>
+												)}
+											</span>
+										}
+										details={
+											<div className="space-y-1">
+												{b.inputs.length === 0 ? (
+													<span className="text-xs text-gray-400">No input slots</span>
+												) : (
+													b.inputs.map((inp, i) => (
+														<div key={i} className="flex gap-2">
+															<span className="font-medium text-gray-500 dark:text-gray-500">Slot {i + 1}:</span>
+															<span>{inp.category ?? 'any'}{inp.required ? ' (required)' : ' (optional)'}</span>
+														</div>
+													))
+												)}
+											</div>
+										}
+										actions={
+											<>
+												<button onClick={() => startEdit(b)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
+												<button onClick={() => setConfirmId(b.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
+											</>
+										}
+									/>
 								)}
 							</div>
 						))}
@@ -761,6 +835,7 @@ function RecipesTab({
 	const [editInputs, setEditInputs] = useState<SlotRow[]>([])
 	const [editOutputs, setEditOutputs] = useState<SlotRow[]>([])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
+	const { expandedIds, toggleExpand } = useExpanded()
 
 	const slotToRow = (s: RecipeSlot): SlotRow => ({ item: s.item, count: String(s.count) })
 
@@ -867,6 +942,17 @@ function RecipesTab({
 
 	const noItemsOrBenches = items.length === 0 || benches.length === 0
 	const visibleRecipes = showNullRecipes ? recipes : recipes.filter((r) => r.outputs.length > 0)
+	const sortedRecipes = [...visibleRecipes].sort((a, b) => {
+		const catOf = (r: Recipe) => {
+			const firstOut = r.outputs[0]
+			if (!firstOut) return '~'
+			return items.find((it) => it.id === firstOut.item)?.category ?? '~'
+		}
+		const ca = catOf(a) ?? '~'
+		const cb = catOf(b) ?? '~'
+		if (ca !== cb) return ca.localeCompare(cb)
+		return recipeLabel(a).localeCompare(recipeLabel(b))
+	})
 
 	return (
 		<div className="space-y-4">
@@ -909,7 +995,7 @@ function RecipesTab({
 					<EmptyState message="No recipes yet. Create one above." />
 				) : (
 					<div className="space-y-1">
-						{visibleRecipes.map((r) => (
+						{sortedRecipes.map((r) => (
 							<div key={r.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === r.id ? (
 									<div className="space-y-2">
@@ -934,12 +1020,51 @@ function RecipesTab({
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
-									<div className="group flex items-center gap-2">
-										<span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-300">{recipeLabel(r)}</span>
-
-										<button onClick={() => startEdit(r)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
-										<button onClick={() => setConfirmId(r.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
-									</div>
+									<ExpandableRow
+										isExpanded={expandedIds.has(r.id)}
+										onToggle={() => toggleExpand(r.id)}
+										summary={
+											<span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+												<span className="inline-block w-40 truncate align-bottom">{recipeLabel(r)}</span>
+												{r.outputs.length > 0 && (
+													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
+														<span className="inline-block w-20 font-medium">Outputs:</span>
+														<span className="inline-block truncate align-bottom">{r.outputs.map((o) => `${o.itemName ?? items.find((it) => it.id === o.item)?.name ?? '?'}×${o.count}`).join(', ')}</span>
+													</span>
+												)}
+											</span>
+										}
+										details={
+											<div className="space-y-2">
+												<div>
+													<span className="font-medium text-gray-500 dark:text-gray-500">Bench: </span>
+													{benches.find((b) => b.id === r.benchId)?.name ?? '?'}
+												</div>
+												<div>
+													<span className="font-medium text-gray-500 dark:text-gray-500">Inputs:</span>
+													<div className="ml-4">
+														{r.inputs.map((i, idx) => (
+															<div key={idx}>{i.itemName ?? items.find((it) => it.id === i.item)?.name ?? '?'} ×{i.count}</div>
+														))}
+													</div>
+												</div>
+												<div>
+													<span className="font-medium text-gray-500 dark:text-gray-500">Outputs:</span>
+													<div className="ml-4">
+														{r.outputs.map((o, idx) => (
+															<div key={idx}>{o.itemName ?? items.find((it) => it.id === o.item)?.name ?? '?'} ×{o.count}</div>
+														))}
+													</div>
+												</div>
+											</div>
+										}
+										actions={
+											<>
+												<button onClick={() => startEdit(r)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
+												<button onClick={() => setConfirmId(r.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
+											</>
+										}
+									/>
 								)}
 							</div>
 						))}
