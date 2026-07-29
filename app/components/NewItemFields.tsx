@@ -12,6 +12,7 @@ export function NewItemFields({
 	setAttrRows,
 	autoFocus,
 	existingNames,
+	ref,
 }: {
 	name: string
 	setName: (s: string) => void
@@ -19,12 +20,14 @@ export function NewItemFields({
 	setAttrRows: (r: AttrRow[]) => void
 	autoFocus?: boolean
 	existingNames?: string[]
+	ref?: React.Ref<HTMLInputElement>
 }) {
 	const trimmed = name.trim().toLowerCase()
 	const isDuplicate = trimmed !== '' && existingNames?.some((n) => n.toLowerCase() === trimmed) === true
 	return (
 		<div className="space-y-2">
 			<input
+				ref={ref}
 				className={`${inputCls} ${isDuplicate ? 'border-red-500 focus:border-red-500' : ''}`}
 				value={name}
 				onChange={(e) => setName(e.target.value)}

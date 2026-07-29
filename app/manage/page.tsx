@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useRef, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../components/GameDataProvider'
 import { api } from '../api'
@@ -358,6 +358,7 @@ function ItemsTab({
 	const [editName, setEditName] = useState('')
 	const [editAttrRows, setEditAttrRows] = useState<AttrRow[]>([{ key: '', value: '' }])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
+	const nameRef = useRef<HTMLInputElement>(null)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -368,6 +369,7 @@ function ItemsTab({
 			setName('')
 			setAttrRows(keysToRows(attributeKeys))
 			onChanged()
+			nameRef.current?.focus()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create item')
 		}
@@ -407,6 +409,7 @@ function ItemsTab({
 			<SectionCard title="Add Item">
 				<form onSubmit={handleAdd} className="space-y-2">
 					<NewItemFields
+						ref={nameRef}
 						name={name}
 						setName={setName}
 						attrRows={attrRows}
