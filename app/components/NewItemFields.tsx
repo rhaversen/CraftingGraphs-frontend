@@ -52,6 +52,7 @@ export function NewItemFields({
 					onChange={setCategory}
 					options={categories}
 					placeholder="Category (optional)"
+					tabIndex={2}
 				/>
 			) : (
 				<input

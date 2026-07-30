@@ -13,12 +13,14 @@ export function Combobox({
 	options,
 	placeholder,
 	className,
+	tabIndex,
 }: {
 	value: string
 	onChange: (value: string) => void
 	options: ComboboxOption[]
 	placeholder?: string
 	className?: string
+	tabIndex?: number
 }) {
 	const [query, setQuery] = useState('')
 	const [open, setOpen] = useState(false)
@@ -72,6 +74,7 @@ export function Combobox({
 				className={className}
 				value={inputText}
 				placeholder={placeholder}
+				tabIndex={tabIndex}
 				onChange={(e) => {
 					setQuery(e.target.value)
 					setOpen(true)
@@ -79,6 +82,10 @@ export function Combobox({
 				}}
 				onFocus={() => {
 					setOpen(true)
+					setQuery('')
+				}}
+				onBlur={() => {
+					setOpen(false)
 					setQuery('')
 				}}
 				onKeyDown={onKey}
@@ -97,6 +104,7 @@ export function Combobox({
 										: 'hover:bg-blue-50 dark:hover:bg-gray-700'
 									}`}
 								onClick={() => select(o.value)}
+								onMouseDown={(e) => e.preventDefault()}
 								onMouseEnter={() => setHighlight(i)}
 							>
 								{o.label}
