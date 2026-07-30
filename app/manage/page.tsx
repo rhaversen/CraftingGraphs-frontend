@@ -746,65 +746,89 @@ function SlotEditor({
 	label,
 	items,
 	attributeKeys,
+	benchInputs,
 }: {
 	arr: SlotRow[]
 	setArr: (a: SlotRow[]) => void
 	label: string
 	items: Item[]
 	attributeKeys: string[]
+	benchInputs?: BenchInput[]
 }) {
+	const benchDriven = benchInputs !== undefined
+	const slotItems = (idx: number): Item[] => {
+		const slot = benchInputs?.[idx]
+		if (slot?.category) return items.filter((it) => it.category === slot.category)
+		return items
+	}
+	const slotCategories = (idx: number): ComboboxOption[] => {
+		const slot = benchInputs?.[idx]
+		if (slot?.category) return [{ value: slot.category, label: slot.category }]
+		return [...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))
+	}
 	return (
 		<div>
 			<span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
 			<div className="space-y-1">
-				{arr.map((row, idx) => (
-					<div key={idx} className="space-y-1 rounded-md border border-gray-100 dark:border-gray-800 p-1">
-						<div className="flex gap-1">
-							<button
-								type="button"
-								className={`rounded px-2 py-1 text-xs font-medium ${!row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-								onClick={() => updateSlot(arr, setArr, idx, { isNew: false })}
-							>Existing</button>
-							<button
-								type="button"
-								className={`rounded px-2 py-1 text-xs font-medium ${row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-								onClick={() => updateSlot(arr, setArr, idx, { isNew: true, item: '', newName: row.newName ?? '', newAttrRows: row.newAttrRows ?? keysToRows(attributeKeys) })}
-							>New</button>
-							<input
-								className={`${inputCls} w-16`}
-								type="number"
-								min="1"
-								value={row.count}
-								onChange={(e) => updateSlot(arr, setArr, idx, { count: e.target.value })}
-							/>
-							{arr.length > 1 && (
-								<button type="button" onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
+				{arr.map((row, idx) => {
+					const slot = benchInputs?.[idx]
+					const lockedCategory = benchDriven && slot?.category ? slot.category : undefined
+					return (
+						<div key={idx} className="space-y-1 rounded-md border border-gray-100 dark:border-gray-800 p-1">
+							{benchDriven && slot && (
+								<div className="text-xs text-gray-500 dark:text-gray-400">
+									Slot {idx + 1}: {slot.category ?? 'any'} · {slot.required ? 'required' : 'optional'}
+								</div>
+							)}
+							<div className="flex gap-1">
+								<button
+									type="button"
+									className={`rounded px-2 py-1 text-xs font-medium ${!row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+									onClick={() => updateSlot(arr, setArr, idx, { isNew: false })}
+								>Existing</button>
+								<button
+									type="button"
+									className={`rounded px-2 py-1 text-xs font-medium ${row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+									onClick={() => updateSlot(arr, setArr, idx, { isNew: true, item: '', newName: row.newName ?? '', newAttrRows: row.newAttrRows ?? keysToRows(attributeKeys) })}
+								>New</button>
+								<input
+									className={`${inputCls} w-16`}
+									type="number"
+									min="1"
+									value={row.count}
+									onChange={(e) => updateSlot(arr, setArr, idx, { count: e.target.value })}
+								/>
+								{!benchDriven && arr.length > 1 && (
+									<button type="button" onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
+								)}
+							</div>
+							{row.isNew ? (
+								<NewItemFields
+									name={row.newName ?? ''}
+									setName={(s) => updateSlot(arr, setArr, idx, { newName: s })}
+									category={row.newCategory ?? ''}
+									setCategory={(s) => updateSlot(arr, setArr, idx, { newCategory: s })}
+									attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
+									setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
+									existingNames={slotItems(idx).map((it) => it.name).filter((n): n is string => n !== null)}
+									categories={lockedCategory ? [{ value: lockedCategory, label: lockedCategory }] : slotCategories(idx)}
+								/>
+							) : (
+								<Combobox
+									className={inputCls}
+									value={row.item}
+									onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
+									options={slotItems(idx).map((it) => ({ value: it.id, label: it.name ?? it.id }))}
+									placeholder="Search item..."
+								/>
 							)}
 						</div>
-						{row.isNew ? (
-							<NewItemFields
-								name={row.newName ?? ''}
-								setName={(s) => updateSlot(arr, setArr, idx, { newName: s })}
-								category={row.newCategory ?? ''}
-								setCategory={(s) => updateSlot(arr, setArr, idx, { newCategory: s })}
-								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
-								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
-								existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
-								categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
-							/>
-						) : (
-							<Combobox
-								className={inputCls}
-								value={row.item}
-								onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
-								options={items.map((it) => ({ value: it.id, label: it.name ?? it.id }))}
-								placeholder="Search item..."
-							/>
-						)}
-					</div>
-				))}
+					)
+				})}
 			</div>
-			<button type="button" onClick={() => addSlot(arr, setArr)} className="mt-1 text-xs text-blue-600 hover:underline">+ Add slot</button>
+			{!benchDriven && (
+				<button type="button" onClick={() => addSlot(arr, setArr)} className="mt-1 text-xs text-blue-600 hover:underline">+ Add slot</button>
+			)}
 		</div>
 	)
 }
@@ -837,6 +861,30 @@ function RecipesTab({
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
 
+	const selectedBench = benches.find((b) => b.id === benchId)
+	const editBench = benches.find((b) => b.id === editBenchId)
+
+	const benchInputsToRows = (benchInputs: BenchInput[]): SlotRow[] =>
+		benchInputs.map((bi) => ({
+			item: '',
+			count: '1',
+			isNew: false,
+			newCategory: bi.category ?? undefined,
+			newAttrRows: keysToRows(attributeKeys),
+		}))
+
+	const onBenchChange = (id: string) => {
+		setBenchId(id)
+		const bench = benches.find((b) => b.id === id)
+		setInputs(bench ? benchInputsToRows(bench.inputs) : [{ item: '', count: '1' }])
+	}
+
+	const onEditBenchChange = (id: string) => {
+		setEditBenchId(id)
+		const bench = benches.find((b) => b.id === id)
+		setEditInputs(bench ? benchInputsToRows(bench.inputs) : [])
+	}
+
 	const slotToRow = (s: RecipeSlot): SlotRow => ({ item: s.item, count: String(s.count) })
 
 	const resolveSlots = async (rows: SlotRow[]): Promise<RecipeSlot[] | null> => {
@@ -866,11 +914,22 @@ function RecipesTab({
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!benchId) { showToast('error', 'Please select a bench'); return }
+		if (!selectedBench) { showToast('error', 'Please select a bench'); return }
+		for (let i = 0; i < selectedBench.inputs.length; i++) {
+			const slot = selectedBench.inputs[i]
+			if (!slot.required) continue
+			const row = inputs[i]
+			const filled = row && (row.isNew ? !!row.newName?.trim() : !!row.item)
+			if (!filled) {
+				showToast('error', `Required input slot ${i + 1} is empty`)
+				return
+			}
+		}
 		const resolvedInputs = await resolveSlots(inputs)
 		const resolvedOutputs = await resolveSlots(outputs)
 		if (resolvedInputs === null || resolvedOutputs === null) return
-		if (resolvedInputs.length === 0 || resolvedOutputs.length === 0) {
-			showToast('error', 'Recipe needs at least one input and one output')
+		if (resolvedOutputs.length === 0) {
+			showToast('error', 'Recipe needs at least one output')
 			return
 		}
 		try {
@@ -893,18 +952,40 @@ function RecipesTab({
 	const startEdit = (r: Recipe) => {
 		setEditingId(r.id)
 		setEditBenchId(r.benchId)
-		setEditInputs(r.inputs.map(slotToRow))
+		const bench = benches.find((b) => b.id === r.benchId)
+		if (bench && bench.inputs.length > 0) {
+			const existing = r.inputs.map(slotToRow)
+			setEditInputs(bench.inputs.map((bi, i) => ({
+				item: existing[i]?.item ?? '',
+				count: existing[i]?.count ?? '1',
+				isNew: false,
+				newCategory: bi.category ?? undefined,
+				newAttrRows: keysToRows(attributeKeys),
+			})))
+		} else {
+			setEditInputs(r.inputs.map(slotToRow))
+		}
 		setEditOutputs(r.outputs.map(slotToRow))
 		setConfirmId(null)
 	}
 
 	const handleSave = async (id: string) => {
 		if (!editBenchId) { showToast('error', 'Please select a bench'); return }
+		for (let i = 0; i < (editBench?.inputs.length ?? 0); i++) {
+			const slot = editBench?.inputs[i]
+			if (!slot?.required) continue
+			const row = editInputs[i]
+			const filled = row && (row.isNew ? !!row.newName?.trim() : !!row.item)
+			if (!filled) {
+				showToast('error', `Required input slot ${i + 1} is empty`)
+				return
+			}
+		}
 		const resolvedInputs = await resolveSlots(editInputs)
 		const resolvedOutputs = await resolveSlots(editOutputs)
 		if (resolvedInputs === null || resolvedOutputs === null) return
-		if (resolvedInputs.length === 0 || resolvedOutputs.length === 0) {
-			showToast('error', 'Recipe needs at least one input and one output')
+		if (resolvedOutputs.length === 0) {
+			showToast('error', 'Recipe needs at least one output')
 			return
 		}
 		try {
@@ -963,11 +1044,11 @@ function RecipesTab({
 						<Combobox
 							className={inputCls}
 							value={benchId}
-							onChange={setBenchId}
+							onChange={onBenchChange}
 							options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
 							placeholder="Search bench..."
 						/>
-						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
+						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={selectedBench?.inputs} />
 						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
 						<button type="submit" className={btnPrimary}>Create</button>
 					</form>
@@ -997,18 +1078,14 @@ function RecipesTab({
 										<Combobox
 											className={inputCls}
 											value={editBenchId}
-											onChange={setEditBenchId}
-											options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
-											placeholder="Search bench..."
-										/>
-										<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
-										<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
-
-										<div className="flex gap-2">
+								onChange={onEditBenchChange}
+								options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+								placeholder="Search bench..."
+							/>
+							<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={editBench?.inputs} />
 											<button onClick={() => handleSave(r.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
 										</div>
-									</div>
 								) : confirmId === r.id ? (
 									<div className="flex items-center gap-2">
 										<span className="flex-1 truncate text-xs text-red-700 dark:text-red-300">Delete this recipe?</span>
