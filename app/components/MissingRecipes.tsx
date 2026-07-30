@@ -281,7 +281,7 @@ export function MissingRecipesTab({
 														setCategory={setNewItemCategory}
 														attrRows={newItemAttrRows}
 														setAttrRows={setNewItemAttrRows}
-														autoFocus															existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}													/>
+														autoFocus existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)} />
 												)}
 												<div className="flex gap-2">
 													<button type="submit" className={btnPrimary}>Save</button>
@@ -293,8 +293,8 @@ export function MissingRecipesTab({
 															setOutputItem('')
 															setOutputCount('1')
 															setOutputMode('existing')
-																setNewItemName('')
-																setNewItemCategory('')
+															setNewItemName('')
+															setNewItemCategory('')
 															setNewItemAttrRows(keysToRows(attributeKeys))
 														}}
 													>Cancel</button>
@@ -310,11 +310,11 @@ export function MissingRecipesTab({
 														setCreatingFor(combo.signature)
 														setOutputItem('')
 														setOutputCount('1')
-													setOutputMode('existing')
-													setNewItemName('')
-													setNewItemCategory('')
-													setNewItemAttrRows(keysToRows(attributeKeys))
-												}}
+														setOutputMode('existing')
+														setNewItemName('')
+														setNewItemCategory('')
+														setNewItemAttrRows(keysToRows(attributeKeys))
+													}}
 													className={btnGhost}
 												>Create recipe</button>
 												<button

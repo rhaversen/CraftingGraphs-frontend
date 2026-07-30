@@ -116,11 +116,10 @@ function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 			<div className="absolute right-3 top-3 z-10 flex flex-wrap items-center gap-2">
 				<button
 					onClick={sim.toggleRunning}
-					className={`rounded-md border px-2 py-1 text-xs shadow-md ${
-						sim.running
+					className={`rounded-md border px-2 py-1 text-xs shadow-md ${sim.running
 							? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
 							: 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-					} hover:bg-gray-50 dark:hover:bg-gray-700`}
+						} hover:bg-gray-50 dark:hover:bg-gray-700`}
 					title={sim.running ? 'Pause simulation' : 'Resume simulation'}
 				>
 					{sim.running ? '⏸' : '▶'}
@@ -136,22 +135,20 @@ function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 				</button>
 				<button
 					onClick={() => setShowMetrics((v) => !v)}
-					className={`rounded-md border px-2 py-1 text-xs shadow-md ${
-						showMetrics
+					className={`rounded-md border px-2 py-1 text-xs shadow-md ${showMetrics
 							? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950'
 							: 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-					} hover:bg-gray-50 dark:hover:bg-gray-700`}
+						} hover:bg-gray-50 dark:hover:bg-gray-700`}
 					title="Toggle metrics"
 				>
 					📊
 				</button>
 				<button
 					onClick={() => setShowParams((v) => !v)}
-					className={`rounded-md border px-2 py-1 text-xs shadow-md ${
-						showParams
+					className={`rounded-md border px-2 py-1 text-xs shadow-md ${showParams
 							? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950'
 							: 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-					} hover:bg-gray-50 dark:hover:bg-gray-700`}
+						} hover:bg-gray-50 dark:hover:bg-gray-700`}
 					title="Tune parameters"
 				>
 					⚙

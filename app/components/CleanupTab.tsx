@@ -301,7 +301,7 @@ export function CleanupTab({
 											<span className="text-xs text-gray-400">←</span>
 											<button onClick={() => { setMergeFrom(pair.keyB); setMergeTo(pair.keyA) }} className={`rounded px-2 py-0.5 text-xs ${mergeFrom === pair.keyB ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{pair.keyB}</button>
 											<div className="ml-auto flex gap-1">
-														<button onClick={() => handleMerge()} className={btnPrimary}>Merge</button>
+												<button onClick={() => handleMerge()} className={btnPrimary}>Merge</button>
 												<button onClick={() => { setMergeFrom(null); setMergeTo(null) }} className={btnGhost}>Cancel</button>
 											</div>
 										</div>
@@ -319,7 +319,7 @@ export function CleanupTab({
 			{flagged.length > 0 && (
 				<>
 					<div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-3 text-sm text-amber-700 dark:text-amber-300">
-					<strong>{flagged.length}</strong> attribute value{flagged.length === 1 ? '' : 's'} may need attention — single-occurrence values or non-numeric values in mostly-numeric fields.
+						<strong>{flagged.length}</strong> attribute value{flagged.length === 1 ? '' : 's'} may need attention — single-occurrence values or non-numeric values in mostly-numeric fields.
 					</div>
 					{Object.entries(grouped).map(([key, entries]) => (
 						<div key={key} className="rounded-lg border border-gray-200 dark:border-gray-800">

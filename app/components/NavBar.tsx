@@ -25,11 +25,10 @@ export default function NavBar() {
 		return (
 			<Link
 				href={selectedGameId ? `${href}?game=${selectedGameId}` : href}
-				className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-					active
+				className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active
 						? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
 						: 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
-				}`}
+					}`}
 			>
 				{label}
 			</Link>

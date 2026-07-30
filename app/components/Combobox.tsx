@@ -92,11 +92,10 @@ export function Combobox({
 							<button
 								key={o.value}
 								type="button"
-								className={`block w-full px-2 py-1 text-left text-sm ${
-									i === highlight
+								className={`block w-full px-2 py-1 text-left text-sm ${i === highlight
 										? 'bg-blue-50 dark:bg-gray-700'
 										: 'hover:bg-blue-50 dark:hover:bg-gray-700'
-								}`}
+									}`}
 								onClick={() => select(o.value)}
 								onMouseEnter={() => setHighlight(i)}
 							>

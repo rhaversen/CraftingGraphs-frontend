@@ -53,11 +53,10 @@ function Toasts({ toasts }: { toasts: ToastMsg[] }) {
 			{toasts.map((t) => (
 				<div
 					key={t.id}
-					className={`rounded-md px-4 py-2 text-sm shadow-lg ${
-						t.type === 'success'
+					className={`rounded-md px-4 py-2 text-sm shadow-lg ${t.type === 'success'
 							? 'border border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
 							: 'border border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200'
-					}`}
+						}`}
 				>
 					{t.message}
 				</div>
@@ -142,11 +141,10 @@ export default function ManagePage() {
 					<button
 						key={t.id}
 						onClick={() => setTab(t.id)}
-						className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${
-							tab === t.id
+						className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${tab === t.id
 								? 'border-x border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400'
 								: 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-						}`}
+							}`}
 					>
 						{t.label}
 						<span className="ml-1.5 text-xs text-gray-400">{t.count}</span>
@@ -321,8 +319,8 @@ function GamesTab({
 									</div>
 								) : confirmId === g.id ? (
 									<div className="flex items-center gap-2">
-							<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{g.name ?? g.id}&rdquo; and all its data?</span>
-							<button onClick={() => handleDelete(g.id, g.name ?? g.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
+										<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{g.name ?? g.id}&rdquo; and all its data?</span>
+										<button onClick={() => handleDelete(g.id, g.name ?? g.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
@@ -334,8 +332,8 @@ function GamesTab({
 													{g.link}
 												</a>
 											)}										{g.attributeKeys && g.attributeKeys.length > 0 && (
-											<span className="ml-2 text-xs text-gray-400">keys: {g.attributeKeys.join(', ')}</span>
-										)}										</div>
+												<span className="ml-2 text-xs text-gray-400">keys: {g.attributeKeys.join(', ')}</span>
+											)}										</div>
 										<button onClick={() => startEdit(g)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
 										<button onClick={() => setConfirmId(g.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
 									</div>
@@ -459,8 +457,8 @@ function ItemsTab({
 								{editingId === it.id ? (
 									<div className="space-y-2">
 										<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
-									<input className={inputCls} value={editCategory} onChange={(e) => setEditCategory(e.target.value)} placeholder="Category (optional)" />
-									<AttributeEditor rows={editAttrRows} setRows={setEditAttrRows} />
+										<input className={inputCls} value={editCategory} onChange={(e) => setEditCategory(e.target.value)} placeholder="Category (optional)" />
+										<AttributeEditor rows={editAttrRows} setRows={setEditAttrRows} />
 										<div className="flex gap-2">
 											<button onClick={() => handleSave(it.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
@@ -468,8 +466,8 @@ function ItemsTab({
 									</div>
 								) : confirmId === it.id ? (
 									<div className="flex items-center gap-2">
-							<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{it.name ?? it.id}&rdquo;?</span>
-							<button onClick={() => handleDelete(it.id, it.name ?? it.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
+										<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{it.name ?? it.id}&rdquo;?</span>
+										<button onClick={() => handleDelete(it.id, it.name ?? it.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
@@ -662,17 +660,17 @@ function BenchesTab({
 							<div key={b.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === b.id ? (
 									<div className="space-y-2">
-									<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
-							<BenchInputsEditor inputs={editInputs} setInputs={setEditInputs} categories={categoryOptions} />
-									<div className="flex gap-2">
+										<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
+										<BenchInputsEditor inputs={editInputs} setInputs={setEditInputs} categories={categoryOptions} />
+										<div className="flex gap-2">
 											<button onClick={() => handleSave(b.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
 										</div>
 									</div>
 								) : confirmId === b.id ? (
 									<div className="flex items-center gap-2">
-							<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{b.name ?? b.id}&rdquo;?</span>
-							<button onClick={() => handleDelete(b.id, b.name ?? b.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
+										<span className="flex-1 text-xs text-red-700 dark:text-red-300">Delete &ldquo;{b.name ?? b.id}&rdquo;?</span>
+										<button onClick={() => handleDelete(b.id, b.name ?? b.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white hover:bg-red-700">Yes</button>
 										<button onClick={() => setConfirmId(null)} className={btnGhost}>No</button>
 									</div>
 								) : (
@@ -791,10 +789,10 @@ function SlotEditor({
 								setCategory={(s) => updateSlot(arr, setArr, idx, { newCategory: s })}
 								attrRows={row.newAttrRows ?? keysToRows(attributeKeys)}
 								setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
-							existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
-							categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
-						/>
-					) : (
+								existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
+								categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
+							/>
+						) : (
 							<Combobox
 								className={inputCls}
 								value={row.item}
@@ -987,7 +985,7 @@ function RecipesTab({
 						/>
 						Show null-output recipes
 					</label>
-			</div>
+				</div>
 				{visibleRecipes.length === 0 ? (
 					<EmptyState message="No recipes yet. Create one above." />
 				) : (
@@ -996,15 +994,15 @@ function RecipesTab({
 							<div key={r.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === r.id ? (
 									<div className="space-y-2">
-									<Combobox
-										className={inputCls}
-										value={editBenchId}
-										onChange={setEditBenchId}
-										options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
-										placeholder="Search bench..."
-									/>
-<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
-					<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
+										<Combobox
+											className={inputCls}
+											value={editBenchId}
+											onChange={setEditBenchId}
+											options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+											placeholder="Search bench..."
+										/>
+										<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} />
+										<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
 
 										<div className="flex gap-2">
 											<button onClick={() => handleSave(r.id)} className={btnPrimary}>Save</button>
