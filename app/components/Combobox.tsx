@@ -85,8 +85,12 @@ export function Combobox({
 					setQuery('')
 				}}
 				onBlur={() => {
-					setOpen(false)
-					setQuery('')
+					if (filtered.length === 1) {
+						select(filtered[0].value)
+					} else {
+						setOpen(false)
+						setQuery('')
+					}
 				}}
 				onKeyDown={onKey}
 			/>
