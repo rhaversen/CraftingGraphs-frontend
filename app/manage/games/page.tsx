@@ -6,27 +6,14 @@ import { api } from '../../api'
 import type { Game } from '../../types'
 import { useToast, Toasts, SectionCard, EmptyState, inputCls, btnPrimary, btnGhost, btnDanger } from '../_shared'
 
+function parseKeys(s: string): string[] {
+	return s.split(',').map((k) => k.trim()).filter(Boolean)
+}
+
 export default function GamesPage() {
 	const { games, refreshAll } = useGameData()
 	const { showToast, toasts } = useToast()
 
-	return (
-		<>
-			<GamesTab games={games} onChanged={refreshAll} showToast={showToast} />
-			<Toasts toasts={toasts} />
-		</>
-	)
-}
-
-function GamesTab({
-	games,
-	onChanged,
-	showToast,
-}: {
-	games: Game[]
-	onChanged: () => void
-	showToast: (type: 'success' | 'error', message: string) => void
-}) {
 	const [showAdd, setShowAdd] = useState(false)
 	const [name, setName] = useState('')
 	const [link, setLink] = useState('')
@@ -36,9 +23,6 @@ function GamesTab({
 	const [editLink, setEditLink] = useState('')
 	const [editAttrKeys, setEditAttrKeys] = useState('')
 	const [confirmId, setConfirmId] = useState<string | null>(null)
-
-	const parseKeys = (s: string): string[] =>
-		s.split(',').map((k) => k.trim()).filter(Boolean)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -50,7 +34,7 @@ function GamesTab({
 			setLink('')
 			setAttrKeys('')
 			setShowAdd(false)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create game')
 		}
@@ -69,7 +53,7 @@ function GamesTab({
 			await api.games.update(id, { name: editName.trim(), link: editLink.trim() || undefined, attributeKeys: parseKeys(editAttrKeys) })
 			showToast('success', 'Game updated')
 			setEditingId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to update game')
 		}
@@ -80,7 +64,7 @@ function GamesTab({
 			await api.games.delete(id)
 			showToast('success', `Game "${name}" deleted`)
 			setConfirmId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to delete game')
 		}
@@ -118,7 +102,9 @@ function GamesTab({
 										<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 											<input className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" />
 											<input className={inputCls} value={editLink} onChange={(e) => setEditLink(e.target.value)} placeholder="Link" />
-										</div>									<input className={inputCls} value={editAttrKeys} onChange={(e) => setEditAttrKeys(e.target.value)} placeholder="Default attribute keys (comma-separated)" />										<div className="flex gap-2">
+										</div>
+										<input className={inputCls} value={editAttrKeys} onChange={(e) => setEditAttrKeys(e.target.value)} placeholder="Default attribute keys (comma-separated)" />
+										<div className="flex gap-2">
 											<button onClick={() => handleSave(g.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
 										</div>
@@ -137,9 +123,11 @@ function GamesTab({
 												<a href={g.link} target="_blank" rel="noopener noreferrer" className="ml-2 text-xs text-blue-500 hover:underline truncate">
 													{g.link}
 												</a>
-											)}										{g.attributeKeys && g.attributeKeys.length > 0 && (
+											)}
+											{g.attributeKeys && g.attributeKeys.length > 0 && (
 												<span className="ml-2 text-xs text-gray-400">keys: {g.attributeKeys.join(', ')}</span>
-											)}										</div>
+											)}
+										</div>
 										<button onClick={() => startEdit(g)} className={`${btnGhost} opacity-0 group-hover:opacity-100`}>Edit</button>
 										<button onClick={() => setConfirmId(g.id)} className={`${btnDanger} opacity-0 group-hover:opacity-100`}>🗑</button>
 									</div>
@@ -149,6 +137,8 @@ function GamesTab({
 					</div>
 				)}
 			</SectionCard>
+
+			<Toasts toasts={toasts} />
 		</div>
 	)
 }

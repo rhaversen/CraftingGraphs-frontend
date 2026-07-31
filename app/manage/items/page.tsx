@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../../components/GameDataProvider'
 import { api } from '../../api'
@@ -16,49 +16,15 @@ export default function ItemsPage() {
 	const selectedGameId = searchParams.get('game')
 	const { showToast, toasts } = useToast()
 
-	if (!selectedGameId) {
-		return (
-			<>
-				<EmptyState message="Select a game in the navbar to manage its content." />
-				<Toasts toasts={toasts} />
-			</>
-		)
-	}
-
-	const gameItems = items.filter((i) => i.gameId === selectedGameId)
-	const selectedGame = games.find((g) => g.id === selectedGameId)
-	const gameAttrKeys = selectedGame?.attributeKeys ?? []
-
-	return (
-		<>
-			<ItemsTab
-				gameId={selectedGameId}
-				items={gameItems}
-				attributeKeys={gameAttrKeys}
-				onChanged={refreshAll}
-				showToast={showToast}
-			/>
-			<Toasts toasts={toasts} />
-		</>
+	const gameItems = useMemo(() => items.filter((i) => i.gameId === selectedGameId), [items, selectedGameId])
+	const gameAttrKeys = useMemo(
+		() => games.find((g) => g.id === selectedGameId)?.attributeKeys ?? [],
+		[games, selectedGameId],
 	)
-}
 
-function ItemsTab({
-	gameId,
-	items,
-	attributeKeys,
-	onChanged,
-	showToast,
-}: {
-	gameId: string
-	items: Item[]
-	attributeKeys: string[]
-	onChanged: () => void
-	showToast: (type: 'success' | 'error', message: string) => void
-}) {
 	const [name, setName] = useState('')
 	const [category, setCategory] = useState('')
-	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(attributeKeys))
+	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(gameAttrKeys))
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
 	const [editCategory, setEditCategory] = useState('')
@@ -66,23 +32,28 @@ function ItemsTab({
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
 	const nameRef = useRef<HTMLInputElement>(null)
-	const sortedItems = [...items].sort((a, b) => {
-		const ca = a.category ?? '~'
-		const cb = b.category ?? '~'
-		if (ca !== cb) return ca.localeCompare(cb)
-		return (a.name ?? '').localeCompare(b.name ?? '')
-	})
+
+	const sortedItems = useMemo(
+		() =>
+			[...gameItems].sort((a, b) => {
+				const ca = a.category ?? '~'
+				const cb = b.category ?? '~'
+				if (ca !== cb) return ca.localeCompare(cb)
+				return (a.name ?? '').localeCompare(b.name ?? '')
+			}),
+		[gameItems],
+	)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
-		if (!name.trim()) return
+		if (!name.trim() || !selectedGameId) return
 		try {
-			await api.items.create({ name: name.trim(), attributes: rowsToAttrs(attrRows), category: category.trim() || null, gameId })
+			await api.items.create({ name: name.trim(), attributes: rowsToAttrs(attrRows), category: category.trim() || null, gameId: selectedGameId })
 			showToast('success', `Item "${name.trim()}" created`)
 			setName('')
 			setCategory('')
-			setAttrRows(keysToRows(attributeKeys))
-			onChanged()
+			setAttrRows(keysToRows(gameAttrKeys))
+			refreshAll()
 			nameRef.current?.focus()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create item')
@@ -102,7 +73,7 @@ function ItemsTab({
 			await api.items.update(id, { name: editName.trim(), attributes: rowsToAttrs(editAttrRows), category: editCategory.trim() || null })
 			showToast('success', 'Item updated')
 			setEditingId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to update item')
 		}
@@ -113,10 +84,19 @@ function ItemsTab({
 			await api.items.delete(id)
 			showToast('success', `Item "${name}" deleted`)
 			setConfirmId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to delete item')
 		}
+	}
+
+	if (!selectedGameId) {
+		return (
+			<>
+				<EmptyState message="Select a game in the navbar to manage its content." />
+				<Toasts toasts={toasts} />
+			</>
+		)
 	}
 
 	return (
@@ -132,8 +112,8 @@ function ItemsTab({
 						attrRows={attrRows}
 						setAttrRows={setAttrRows}
 						autoFocus
-						existingNames={items.map((it) => it.name).filter((n): n is string => n !== null)}
-						categories={[...new Set(items.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
+						existingNames={gameItems.map((it) => it.name).filter((n): n is string => n !== null)}
+						categories={[...new Set(gameItems.map((it) => it.category).filter((c): c is string => c !== null))].sort().map((c) => ({ value: c, label: c }))}
 					/>
 					<div className="flex gap-2">
 						<button type="submit" className={btnPrimary}>Create</button>
@@ -141,8 +121,8 @@ function ItemsTab({
 				</form>
 			</SectionCard>
 
-			<SectionCard title="Items" count={items.length}>
-				{items.length === 0 ? (
+			<SectionCard title="Items" count={gameItems.length}>
+				{gameItems.length === 0 ? (
 					<EmptyState message="No items yet. Create one above." />
 				) : (
 					<div className="space-y-1">
@@ -212,6 +192,8 @@ function ItemsTab({
 					</div>
 				)}
 			</SectionCard>
+
+			<Toasts toasts={toasts} />
 		</div>
 	)
 }

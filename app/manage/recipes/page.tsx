@@ -1,52 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../../components/GameDataProvider'
 import { api } from '../../api'
-import type { Bench, BenchInput, Item, Recipe, RecipeSlot } from '../../types'
+import type { BenchInput, Item, Recipe, RecipeSlot } from '../../types'
 import { type AttrRow, keysToRows, rowsToAttrs } from '../../components/AttributeEditor'
 import { NewItemFields } from '../../components/NewItemFields'
 import { ExpandableRow, useExpanded } from '../../components/ExpandableRow'
 import { Combobox, type ComboboxOption } from '../../components/Combobox'
 import { useToast, Toasts, SectionCard, EmptyState, inputCls, btnPrimary, btnGhost, btnDanger } from '../_shared'
-
-export default function RecipesPage() {
-	const { items, benches, recipes, games, refreshAll } = useGameData()
-	const searchParams = useSearchParams()
-	const selectedGameId = searchParams.get('game')
-	const { showToast, toasts } = useToast()
-
-	if (!selectedGameId) {
-		return (
-			<>
-				<EmptyState message="Select a game in the navbar to manage its content." />
-				<Toasts toasts={toasts} />
-			</>
-		)
-	}
-
-	const gameItems = items.filter((i) => i.gameId === selectedGameId)
-	const gameBenches = benches.filter((b) => b.gameId === selectedGameId)
-	const gameRecipes = recipes.filter((r) => r.gameId === selectedGameId)
-	const selectedGame = games.find((g) => g.id === selectedGameId)
-	const gameAttrKeys = selectedGame?.attributeKeys ?? []
-
-	return (
-		<>
-			<RecipesTab
-				gameId={selectedGameId}
-				items={gameItems}
-				benches={gameBenches}
-				recipes={gameRecipes}
-				attributeKeys={gameAttrKeys}
-				onChanged={refreshAll}
-				showToast={showToast}
-			/>
-			<Toasts toasts={toasts} />
-		</>
-	)
-}
 
 interface SlotRow {
 	item: string
@@ -169,23 +132,20 @@ function SlotEditor({
 	)
 }
 
-function RecipesTab({
-	gameId,
-	items,
-	benches,
-	recipes,
-	attributeKeys,
-	onChanged,
-	showToast,
-}: {
-	gameId: string
-	items: Item[]
-	benches: Bench[]
-	recipes: Recipe[]
-	attributeKeys: string[]
-	onChanged: () => void
-	showToast: (type: 'success' | 'error', message: string) => void
-}) {
+export default function RecipesPage() {
+	const { items, benches, recipes, games, refreshAll } = useGameData()
+	const searchParams = useSearchParams()
+	const selectedGameId = searchParams.get('game')
+	const { showToast, toasts } = useToast()
+
+	const gameItems = useMemo(() => items.filter((i) => i.gameId === selectedGameId), [items, selectedGameId])
+	const gameBenches = useMemo(() => benches.filter((b) => b.gameId === selectedGameId), [benches, selectedGameId])
+	const gameRecipes = useMemo(() => recipes.filter((r) => r.gameId === selectedGameId), [recipes, selectedGameId])
+	const gameAttrKeys = useMemo(
+		() => games.find((g) => g.id === selectedGameId)?.attributeKeys ?? [],
+		[games, selectedGameId],
+	)
+
 	const [showNullRecipes, setShowNullRecipes] = useState(false)
 	const [benchId, setBenchId] = useState('')
 	const [inputs, setInputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
@@ -197,8 +157,8 @@ function RecipesTab({
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
 
-	const selectedBench = benches.find((b) => b.id === benchId)
-	const editBench = benches.find((b) => b.id === editBenchId)
+	const selectedBench = gameBenches.find((b) => b.id === benchId)
+	const editBench = gameBenches.find((b) => b.id === editBenchId)
 
 	const benchInputsToRows = (benchInputs: BenchInput[]): SlotRow[] =>
 		benchInputs.map((bi) => ({
@@ -206,18 +166,18 @@ function RecipesTab({
 			count: '1',
 			isNew: false,
 			newCategory: bi.category ?? undefined,
-			newAttrRows: keysToRows(attributeKeys),
+			newAttrRows: keysToRows(gameAttrKeys),
 		}))
 
 	const onBenchChange = (id: string) => {
 		setBenchId(id)
-		const bench = benches.find((b) => b.id === id)
+		const bench = gameBenches.find((b) => b.id === id)
 		setInputs(bench ? benchInputsToRows(bench.inputs) : [{ item: '', count: '1' }])
 	}
 
 	const onEditBenchChange = (id: string) => {
 		setEditBenchId(id)
-		const bench = benches.find((b) => b.id === id)
+		const bench = gameBenches.find((b) => b.id === id)
 		setEditInputs(bench ? benchInputsToRows(bench.inputs) : [])
 	}
 
@@ -228,9 +188,10 @@ function RecipesTab({
 		for (const row of rows) {
 			if (row.isNew) {
 				if (!row.newName?.trim()) continue
+				if (!selectedGameId) return null
 				try {
 					const created = await api.items.create({
-						gameId,
+						gameId: selectedGameId,
 						name: row.newName.trim(),
 						attributes: rowsToAttrs(row.newAttrRows ?? []),
 						category: row.newCategory?.trim() || null,
@@ -270,15 +231,15 @@ function RecipesTab({
 		}
 		try {
 			await api.recipes.create({
-				gameId,
+				gameId: selectedGameId!,
 				benchId,
 				inputs: resolvedInputs,
 				outputs: resolvedOutputs,
 			})
 			showToast('success', 'Recipe created')
-		setInputs(selectedBench ? benchInputsToRows(selectedBench.inputs) : [{ item: '', count: '1' }])
-		setOutputs([{ item: '', count: '1' }])
-		onChanged()
+			setInputs(selectedBench ? benchInputsToRows(selectedBench.inputs) : [{ item: '', count: '1' }])
+			setOutputs([{ item: '', count: '1' }])
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create recipe')
 		}
@@ -287,7 +248,7 @@ function RecipesTab({
 	const startEdit = (r: Recipe) => {
 		setEditingId(r.id)
 		setEditBenchId(r.benchId)
-		const bench = benches.find((b) => b.id === r.benchId)
+		const bench = gameBenches.find((b) => b.id === r.benchId)
 		if (bench && bench.inputs.length > 0) {
 			const existing = r.inputs.map(slotToRow)
 			setEditInputs(bench.inputs.map((bi, i) => ({
@@ -295,7 +256,7 @@ function RecipesTab({
 				count: existing[i]?.count ?? '1',
 				isNew: false,
 				newCategory: bi.category ?? undefined,
-				newAttrRows: keysToRows(attributeKeys),
+				newAttrRows: keysToRows(gameAttrKeys),
 			})))
 		} else {
 			setEditInputs(r.inputs.map(slotToRow))
@@ -331,7 +292,7 @@ function RecipesTab({
 			})
 			showToast('success', 'Recipe updated')
 			setEditingId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to update recipe')
 		}
@@ -342,32 +303,41 @@ function RecipesTab({
 			await api.recipes.delete(id)
 			showToast('success', `Recipe deleted: ${label}`)
 			setConfirmId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to delete recipe')
 		}
 	}
 
 	const recipeLabel = (r: Recipe) => {
-		const benchName = benches.find((b) => b.id === r.benchId)?.name ?? '?'
-		const inNames = r.inputs.map((i) => i.itemName ?? items.find((it) => it.id === i.item)?.name ?? '?').join(', ')
-		const outNames = r.outputs.map((o) => o.itemName ?? items.find((it) => it.id === o.item)?.name ?? '?').join(', ')
+		const benchName = gameBenches.find((b) => b.id === r.benchId)?.name ?? '?'
+		const inNames = r.inputs.map((i) => i.itemName ?? gameItems.find((it) => it.id === i.item)?.name ?? '?').join(', ')
+		const outNames = r.outputs.map((o) => o.itemName ?? gameItems.find((it) => it.id === o.item)?.name ?? '?').join(', ')
 		return `${benchName}: ${inNames} → ${outNames}`
 	}
 
-	const noItemsOrBenches = items.length === 0 || benches.length === 0
-	const visibleRecipes = showNullRecipes ? recipes : recipes.filter((r) => r.outputs.length > 0)
+	const noItemsOrBenches = gameItems.length === 0 || gameBenches.length === 0
+	const visibleRecipes = showNullRecipes ? gameRecipes : gameRecipes.filter((r) => r.outputs.length > 0)
 	const sortedRecipes = [...visibleRecipes].sort((a, b) => {
 		const catOf = (r: Recipe) => {
 			const firstOut = r.outputs[0]
 			if (!firstOut) return '~'
-			return items.find((it) => it.id === firstOut.item)?.category ?? '~'
+			return gameItems.find((it) => it.id === firstOut.item)?.category ?? '~'
 		}
 		const ca = catOf(a) ?? '~'
 		const cb = catOf(b) ?? '~'
 		if (ca !== cb) return ca.localeCompare(cb)
 		return recipeLabel(a).localeCompare(recipeLabel(b))
 	})
+
+	if (!selectedGameId) {
+		return (
+			<>
+				<EmptyState message="Select a game in the navbar to manage its content." />
+				<Toasts toasts={toasts} />
+			</>
+		)
+	}
 
 	return (
 		<div className="space-y-4">
@@ -380,12 +350,12 @@ function RecipesTab({
 							className={inputCls}
 							value={benchId}
 							onChange={onBenchChange}
-							options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+							options={gameBenches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
 							placeholder="Search bench..."
 							tabIndex={1}
 						/>
-						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={selectedBench?.inputs} baseTabIndex={2} />
-						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} baseTabIndex={2 + inputs.length} />
+						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={gameItems} attributeKeys={gameAttrKeys} benchInputs={selectedBench?.inputs} baseTabIndex={2} />
+						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={gameItems} attributeKeys={gameAttrKeys} baseTabIndex={2 + inputs.length} />
 						<button type="submit" className={btnPrimary} tabIndex={2 + inputs.length + outputs.length}>Create</button>
 					</form>
 				)}
@@ -414,14 +384,17 @@ function RecipesTab({
 										<Combobox
 											className={inputCls}
 											value={editBenchId}
-								onChange={onEditBenchChange}
-								options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
-								placeholder="Search bench..."
-							/>
-							<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={editBench?.inputs} />
+											onChange={onEditBenchChange}
+											options={gameBenches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+											placeholder="Search bench..."
+										/>
+										<SlotEditor arr={editInputs} setArr={setEditInputs} label="Inputs" items={gameItems} attributeKeys={gameAttrKeys} benchInputs={editBench?.inputs} />
+										<SlotEditor arr={editOutputs} setArr={setEditOutputs} label="Outputs" items={gameItems} attributeKeys={gameAttrKeys} />
+										<div className="flex gap-2">
 											<button onClick={() => handleSave(r.id)} className={btnPrimary}>Save</button>
 											<button onClick={() => setEditingId(null)} className={btnGhost}>Cancel</button>
 										</div>
+									</div>
 								) : confirmId === r.id ? (
 									<div className="flex items-center gap-2">
 										<span className="flex-1 truncate text-xs text-red-700 dark:text-red-300">Delete this recipe?</span>
@@ -438,7 +411,7 @@ function RecipesTab({
 												{r.outputs.length > 0 && (
 													<span className="ml-2 inline-block align-bottom text-xs text-gray-400">
 														<span className="inline-block w-20 font-medium">Outputs:</span>
-														<span className="inline-block truncate align-bottom">{r.outputs.map((o) => `${o.itemName ?? items.find((it) => it.id === o.item)?.name ?? '?'}×${o.count}`).join(', ')}</span>
+														<span className="inline-block truncate align-bottom">{r.outputs.map((o) => `${o.itemName ?? gameItems.find((it) => it.id === o.item)?.name ?? '?'}×${o.count}`).join(', ')}</span>
 													</span>
 												)}
 											</span>
@@ -447,13 +420,13 @@ function RecipesTab({
 											<div className="space-y-2">
 												<div>
 													<span className="font-medium text-gray-500 dark:text-gray-500">Bench: </span>
-													{benches.find((b) => b.id === r.benchId)?.name ?? '?'}
+													{gameBenches.find((b) => b.id === r.benchId)?.name ?? '?'}
 												</div>
 												<div>
 													<span className="font-medium text-gray-500 dark:text-gray-500">Inputs:</span>
 													<div className="ml-4">
 														{r.inputs.map((i, idx) => (
-															<div key={idx}>{i.itemName ?? items.find((it) => it.id === i.item)?.name ?? '?'} ×{i.count}</div>
+															<div key={idx}>{i.itemName ?? gameItems.find((it) => it.id === i.item)?.name ?? '?'} ×{i.count}</div>
 														))}
 													</div>
 												</div>
@@ -461,7 +434,7 @@ function RecipesTab({
 													<span className="font-medium text-gray-500 dark:text-gray-500">Outputs:</span>
 													<div className="ml-4">
 														{r.outputs.map((o, idx) => (
-															<div key={idx}>{o.itemName ?? items.find((it) => it.id === o.item)?.name ?? '?'} ×{o.count}</div>
+															<div key={idx}>{o.itemName ?? gameItems.find((it) => it.id === o.item)?.name ?? '?'} ×{o.count}</div>
 														))}
 													</div>
 												</div>
@@ -480,6 +453,8 @@ function RecipesTab({
 					</div>
 				)}
 			</SectionCard>
+
+			<Toasts toasts={toasts} />
 		</div>
 	)
 }

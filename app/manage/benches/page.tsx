@@ -1,45 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../../components/GameDataProvider'
 import { api } from '../../api'
-import type { Bench, BenchInput, Item } from '../../types'
+import type { Bench, BenchInput } from '../../types'
 import { Combobox, type ComboboxOption } from '../../components/Combobox'
 import { ExpandableRow, useExpanded } from '../../components/ExpandableRow'
 import { useToast, Toasts, SectionCard, EmptyState, inputCls, btnPrimary, btnGhost, btnDanger } from '../_shared'
-
-export default function BenchesPage() {
-	const { items, benches, refreshAll } = useGameData()
-	const searchParams = useSearchParams()
-	const selectedGameId = searchParams.get('game')
-	const { showToast, toasts } = useToast()
-
-	if (!selectedGameId) {
-		return (
-			<>
-				<EmptyState message="Select a game in the navbar to manage its content." />
-				<Toasts toasts={toasts} />
-			</>
-		)
-	}
-
-	const gameItems = items.filter((i) => i.gameId === selectedGameId)
-	const gameBenches = benches.filter((b) => b.gameId === selectedGameId)
-
-	return (
-		<>
-			<BenchesTab
-				gameId={selectedGameId}
-				benches={gameBenches}
-				items={gameItems}
-				onChanged={refreshAll}
-				showToast={showToast}
-			/>
-			<Toasts toasts={toasts} />
-		</>
-	)
-}
 
 function BenchInputsEditor({
 	inputs,
@@ -88,19 +56,15 @@ function BenchInputsEditor({
 	)
 }
 
-function BenchesTab({
-	gameId,
-	benches,
-	items,
-	onChanged,
-	showToast,
-}: {
-	gameId: string
-	benches: Bench[]
-	items: Item[]
-	onChanged: () => void
-	showToast: (type: 'success' | 'error', message: string) => void
-}) {
+export default function BenchesPage() {
+	const { items, benches, refreshAll } = useGameData()
+	const searchParams = useSearchParams()
+	const selectedGameId = searchParams.get('game')
+	const { showToast, toasts } = useToast()
+
+	const gameItems = useMemo(() => items.filter((i) => i.gameId === selectedGameId), [items, selectedGameId])
+	const gameBenches = useMemo(() => benches.filter((b) => b.gameId === selectedGameId), [benches, selectedGameId])
+
 	const [name, setName] = useState('')
 	const [inputs, setInputs] = useState<BenchInput[]>([])
 	const [editingId, setEditingId] = useState<string | null>(null)
@@ -109,21 +73,28 @@ function BenchesTab({
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
 
-	const categorySet = new Set<string>()
-	for (const it of items) {
-		if (it.category) categorySet.add(it.category)
-	}
-	const categoryOptions: ComboboxOption[] = [...categorySet].sort().map((c) => ({ value: c, label: c }))
+	const categoryOptions = useMemo<ComboboxOption[]>(() => {
+		const categorySet = new Set<string>()
+		for (const it of gameItems) {
+			if (it.category) categorySet.add(it.category)
+		}
+		return [...categorySet].sort().map((c) => ({ value: c, label: c }))
+	}, [gameItems])
+
+	const sortedBenches = useMemo(
+		() => [...gameBenches].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
+		[gameBenches],
+	)
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault()
-		if (!name.trim()) return
+		if (!name.trim() || !selectedGameId) return
 		try {
-			await api.benches.create({ name: name.trim(), inputs, gameId })
+			await api.benches.create({ name: name.trim(), inputs, gameId: selectedGameId })
 			showToast('success', `Bench "${name.trim()}" created`)
 			setName('')
 			setInputs([])
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create bench')
 		}
@@ -141,7 +112,7 @@ function BenchesTab({
 			await api.benches.update(id, { name: editName.trim(), inputs: editInputs })
 			showToast('success', 'Bench updated')
 			setEditingId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to update bench')
 		}
@@ -152,10 +123,19 @@ function BenchesTab({
 			await api.benches.delete(id)
 			showToast('success', `Bench "${name}" deleted`)
 			setConfirmId(null)
-			onChanged()
+			refreshAll()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to delete bench')
 		}
+	}
+
+	if (!selectedGameId) {
+		return (
+			<>
+				<EmptyState message="Select a game in the navbar to manage its content." />
+				<Toasts toasts={toasts} />
+			</>
+		)
 	}
 
 	return (
@@ -168,12 +148,12 @@ function BenchesTab({
 				</form>
 			</SectionCard>
 
-			<SectionCard title="Benches" count={benches.length}>
-				{benches.length === 0 ? (
+			<SectionCard title="Benches" count={gameBenches.length}>
+				{gameBenches.length === 0 ? (
 					<EmptyState message="No benches yet. Create one above." />
 				) : (
 					<div className="space-y-1">
-						{[...benches].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')).map((b) => (
+						{sortedBenches.map((b) => (
 							<div key={b.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === b.id ? (
 									<div className="space-y-2">
@@ -232,6 +212,8 @@ function BenchesTab({
 					</div>
 				)}
 			</SectionCard>
+
+			<Toasts toasts={toasts} />
 		</div>
 	)
 }
