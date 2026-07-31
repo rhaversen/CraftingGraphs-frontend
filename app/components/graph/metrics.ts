@@ -1,5 +1,4 @@
-import type { GraphModel, Metrics, SimParams } from './types'
-import { computeEnergy } from './simulation'
+import type { GraphModel, Metrics } from './types'
 
 interface Segment {
 	id: string
@@ -9,7 +8,7 @@ interface Segment {
 	y2: number
 }
 
-export function computeMetrics(model: GraphModel, params: SimParams): Metrics {
+export function computeMetrics(model: GraphModel): Metrics {
 	const { nodes, edges, nodeMap } = model
 	const segments: Segment[] = []
 	for (const e of edges) {
@@ -73,7 +72,6 @@ export function computeMetrics(model: GraphModel, params: SimParams): Metrics {
 	const minEdgeLength = lengths.length ? Math.min(...lengths) : 0
 
 	const congestion = computeCongestion(nodes, edges, nodeMap)
-	const energy = computeEnergy(model)
 
 	return {
 		crossings,
@@ -85,10 +83,6 @@ export function computeMetrics(model: GraphModel, params: SimParams): Metrics {
 		maxEdgeLength,
 		minEdgeLength,
 		congestion,
-		energy,
-		alpha: params.alpha,
-		tick: 0,
-		converged: params.alpha <= params.alphaMin,
 	}
 }
 

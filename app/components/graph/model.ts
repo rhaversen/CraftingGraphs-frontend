@@ -30,10 +30,6 @@ export function buildGraphModel(items: Item[], _benches: Bench[], recipes: Recip
 			label: item.name ?? item.id,
 			x: 0,
 			y: 0,
-			vx: 0,
-			vy: 0,
-			fx: null,
-			fy: null,
 			level: 0,
 			inDegree: 0,
 			outDegree: 0,
@@ -140,10 +136,6 @@ export function buildGraphModel(items: Item[], _benches: Bench[], recipes: Recip
 			label: benchName,
 			x: 0,
 			y: 0,
-			vx: 0,
-			vy: 0,
-			fx: null,
-			fy: null,
 			level: recipeLevel,
 			inDegree: validInputs.length,
 			outDegree: validOutputs.length,
@@ -413,8 +405,6 @@ export function initializeLayout(model: GraphModel, vertical = false): void {
 				n.x = baseX
 				n.y = y
 			}
-			n.vx = 0
-			n.vy = 0
 		})
 	}
 }

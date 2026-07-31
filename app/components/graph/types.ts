@@ -3,10 +3,6 @@ export interface SimNode {
 	label: string
 	x: number
 	y: number
-	vx: number
-	vy: number
-	fx: number | null
-	fy: number | null
 	level: number
 	inDegree: number
 	outDegree: number
@@ -45,42 +41,6 @@ export interface GraphModel {
 	cycles: string[][]
 }
 
-export interface SimParams {
-	repulsion: number
-	springStrength: number
-	springLength: number
-	flowStrength: number
-	centerStrength: number
-	barycenterStrength: number
-	levelStrength: number
-	levelSpacing: number
-	gravity: number
-	crossingPenalty: number
-	damping: number
-	alpha: number
-	alphaDecay: number
-	alphaMin: number
-	velocityDecay: number
-}
-
-export const DEFAULT_PARAMS: SimParams = {
-	repulsion: 4000,
-	springStrength: 0.03,
-	springLength: 110,
-	flowStrength: 0.06,
-	centerStrength: 0.01,
-	barycenterStrength: 0.04,
-	levelStrength: 0.08,
-	levelSpacing: 220,
-	gravity: 0.003,
-	crossingPenalty: 0.5,
-	damping: 0.85,
-	alpha: 1,
-	alphaDecay: 0.015,
-	alphaMin: 0.001,
-	velocityDecay: 0.6,
-}
-
 export interface Metrics {
 	crossings: number
 	crossingPairs: [string, string][]
@@ -91,8 +51,4 @@ export interface Metrics {
 	maxEdgeLength: number
 	minEdgeLength: number
 	congestion: number
-	energy: number
-	alpha: number
-	tick: number
-	converged: boolean
 }

@@ -9,9 +9,7 @@
  * different graph sizes and structures (chains, trees, diamonds, cycles).
  */
 import { buildGraphModel, initializeLayout } from '../app/components/graph/model.js'
-import { tick, reduceCrossings } from '../app/components/graph/simulation.js'
 import { computeMetrics } from '../app/components/graph/metrics.js'
-import { DEFAULT_PARAMS } from '../app/components/graph/types.js'
 import type { Item, Bench, Recipe } from '../app/types.js'
 
 // --- Synthetic data generators ----------------------------------------------
@@ -193,47 +191,21 @@ function linkedDiamonds(count: number, benchId: string): { items: Item[]; recipe
 // --- Simulation runner -------------------------------------------------------
 
 interface RunResult {
-	ticks: number
 	crossings: number
 	directionViolations: number
 	nodeOverlaps: number
 	congestion: number
-	energy: number
-	converged: boolean
 }
 
-function runSimulation(items: Item[], benches: Bench[], recipes: Recipe[], maxTicks = 2000): RunResult {
+function runSimulation(items: Item[], benches: Bench[], recipes: Recipe[]): RunResult {
 	const model = buildGraphModel(items, benches, recipes)
 	initializeLayout(model, false)
-	const params = { ...DEFAULT_PARAMS, alpha: 1 }
-	let crossingDone = false
-
-	for (let t = 0; t < maxTicks; t++) {
-		if (params.alpha <= params.alphaMin) break
-		if (!crossingDone && params.alpha < 0.15) {
-			reduceCrossings(model)
-			crossingDone = true
-			params.alpha = Math.max(params.alpha, 0.3)
-		}
-		tick(model, params)
-		params.alpha *= 1 - params.alphaDecay
-	}
-
-	// Final post-processing: reduce crossings + resolve overlaps after
-	// the simulation has fully converged. This ensures the final layout
-	// has no overlaps, since the simulation's barycenter force can pull
-	// nodes back together after the mid-simulation reduceCrossings.
-	reduceCrossings(model)
-
-	const m = computeMetrics(model, params)
+	const m = computeMetrics(model)
 	return {
-		ticks: maxTicks,
 		crossings: m.crossings,
 		directionViolations: m.directionViolations,
 		nodeOverlaps: m.nodeOverlaps,
 		congestion: m.congestion,
-		energy: m.energy,
-		converged: m.converged,
 	}
 }
 
@@ -241,7 +213,7 @@ function runSimulation(items: Item[], benches: Bench[], recipes: Recipe[], maxTi
 
 function progressiveTest(label: string, allItems: Item[], benches: Bench[], allRecipes: Recipe[]) {
 	console.log(`\n=== ${label} (progressive) ===`)
-	console.log('Recipes | Nodes | Edges | Cross | DirV | Overlap | Congest | Energy')
+	console.log('Recipes | Nodes | Edges | Cross | DirV | Overlap | Congest')
 	const bench = benches[0]
 	for (let n = 1; n <= allRecipes.length; n++) {
 		const subset = allRecipes.slice(0, n)
@@ -254,7 +226,7 @@ function progressiveTest(label: string, allItems: Item[], benches: Bench[], allR
 		const r = runSimulation(items, [bench], subset)
 		const model = buildGraphModel(items, [bench], subset)
 		console.log(
-			`${n.toString().padStart(7)} | ${items.length.toString().padStart(5)} | ${model.edges.length.toString().padStart(5)} | ${r.crossings.toString().padStart(5)} | ${r.directionViolations.toString().padStart(4)} | ${r.nodeOverlaps.toString().padStart(7)} | ${r.congestion.toFixed(2).padStart(7)} | ${r.energy.toFixed(0).padStart(6)}`,
+			`${n.toString().padStart(7)} | ${items.length.toString().padStart(5)} | ${model.edges.length.toString().padStart(5)} | ${r.crossings.toString().padStart(5)} | ${r.directionViolations.toString().padStart(4)} | ${r.nodeOverlaps.toString().padStart(7)} | ${r.congestion.toFixed(2).padStart(7)}`,
 		)
 	}
 }
@@ -265,7 +237,7 @@ const bench = makeBench('TestBench')
 const benches: Bench[] = [bench]
 
 console.log('=== Graph Layout Algorithm Validation ===')
-console.log(`Default params: repulsion=${DEFAULT_PARAMS.repulsion} spring=${DEFAULT_PARAMS.springStrength} flow=${DEFAULT_PARAMS.flowStrength} barycenter=${DEFAULT_PARAMS.barycenterStrength} crossingPenalty=${DEFAULT_PARAMS.crossingPenalty}`)
+console.log('Initial barycenter placement (no force-directed simulation)')
 
 // Chain
 const chain = chainRecipe(8, bench.id)

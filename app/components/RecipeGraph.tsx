@@ -16,7 +16,6 @@ import { useGraphSim } from './graph/useGraphSim'
 import { ItemNode } from './graph/ItemNode'
 import { RecipeNode } from './graph/RecipeNode'
 import { MetricsPanel } from './graph/MetricsPanel'
-import type { SimParams } from './graph/types'
 
 interface RecipeGraphProps {
 	items: Item[]
@@ -35,7 +34,6 @@ function classifyItem(inDegree: number, outDegree: number): 'raw' | 'final' | 'i
 function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 	const [recipeCount, setRecipeCount] = useState(recipes.length)
 	const [showMetrics, setShowMetrics] = useState(true)
-	const [showParams, setShowParams] = useState(false)
 
 	const effectiveCount = Math.min(recipeCount, recipes.length)
 	const sim = useGraphSim(items, benches, recipes, effectiveCount)
@@ -115,25 +113,6 @@ function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 
 			<div className="absolute right-3 top-3 z-10 flex flex-wrap items-center gap-2">
 				<button
-					onClick={sim.toggleRunning}
-					className={`rounded-md border px-2 py-1 text-xs shadow-md ${sim.running
-							? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
-							: 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-						} hover:bg-gray-50 dark:hover:bg-gray-700`}
-					title={sim.running ? 'Pause simulation' : 'Resume simulation'}
-				>
-					{sim.running ? '⏸' : '▶'}
-				</button>
-				<button onClick={sim.stepOnce} className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs shadow-md hover:bg-gray-50 dark:hover:bg-gray-700" title="Step one tick">
-					⏭
-				</button>
-				<button onClick={sim.reheat} className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs shadow-md hover:bg-gray-50 dark:hover:bg-gray-700" title="Reheat (alpha=1)">
-					🔥
-				</button>
-				<button onClick={sim.restart} className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs shadow-md hover:bg-gray-50 dark:hover:bg-gray-700" title="Restart layout from scratch">
-					↻
-				</button>
-				<button
 					onClick={() => setShowMetrics((v) => !v)}
 					className={`rounded-md border px-2 py-1 text-xs shadow-md ${showMetrics
 							? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950'
@@ -142,16 +121,6 @@ function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 					title="Toggle metrics"
 				>
 					📊
-				</button>
-				<button
-					onClick={() => setShowParams((v) => !v)}
-					className={`rounded-md border px-2 py-1 text-xs shadow-md ${showParams
-							? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950'
-							: 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-						} hover:bg-gray-50 dark:hover:bg-gray-700`}
-					title="Tune parameters"
-				>
-					⚙
 				</button>
 			</div>
 
@@ -175,46 +144,6 @@ function RecipeGraphInner({ items, benches, recipes }: RecipeGraphProps) {
 				)}
 			</div>
 
-			{showParams && <ParamsPanel params={sim.params} setParams={sim.setParams} />}
-		</div>
-	)
-}
-
-function ParamsPanel({ params, setParams }: { params: SimParams; setParams: (updater: (prev: SimParams) => SimParams) => void }) {
-	const fields: { key: keyof SimParams; label: string; min: number; max: number; step: number }[] = [
-		{ key: 'repulsion', label: 'Repulsion', min: 0, max: 2000, step: 50 },
-		{ key: 'springStrength', label: 'Spring k', min: 0, max: 0.5, step: 0.01 },
-		{ key: 'springLength', label: 'Spring len', min: 50, max: 400, step: 10 },
-		{ key: 'flowStrength', label: 'Flow', min: 0, max: 0.2, step: 0.01 },
-		{ key: 'levelStrength', label: 'Level', min: 0, max: 0.2, step: 0.01 },
-		{ key: 'levelSpacing', label: 'Lvl spacing', min: 100, max: 500, step: 10 },
-		{ key: 'centerStrength', label: 'Center', min: 0, max: 0.1, step: 0.005 },
-		{ key: 'barycenterStrength', label: 'Barycenter', min: 0, max: 0.2, step: 0.01 },
-		{ key: 'crossingPenalty', label: 'Cross penalty', min: 0, max: 2, step: 0.1 },
-		{ key: 'alphaDecay', label: 'Alpha decay', min: 0, max: 0.2, step: 0.001 },
-	]
-	return (
-		<div className="absolute right-3 top-16 z-10 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 p-3 text-xs shadow-lg backdrop-blur-sm">
-			<div className="mb-2 font-semibold text-gray-700 dark:text-gray-300">Parameters</div>
-			<div className="space-y-2">
-				{fields.map((f) => (
-					<div key={f.key}>
-						<div className="mb-0.5 flex justify-between text-gray-500 dark:text-gray-400">
-							<span>{f.label}</span>
-							<span className="font-mono">{(params[f.key] as number).toFixed(3)}</span>
-						</div>
-						<input
-							type="range"
-							min={f.min}
-							max={f.max}
-							step={f.step}
-							value={params[f.key] as number}
-							onChange={(e) => setParams((p) => ({ ...p, [f.key]: Number(e.target.value) }))}
-							className="w-full accent-blue-500"
-						/>
-					</div>
-				))}
-			</div>
 		</div>
 	)
 }
