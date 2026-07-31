@@ -33,6 +33,13 @@ export interface ChainStep {
 	cumulativeRatio: number
 }
 
+export interface ChainOfLength {
+	length: number
+	chain: ChainStep[]
+	profit: number
+	ratio: number
+}
+
 export interface ProfitAnalysis {
 	costKey: string
 	itemValues: Map<string, number>
@@ -43,6 +50,7 @@ export interface ProfitAnalysis {
 	bestChain: ChainStep[] | null
 	bestChainProfit: number
 	bestChainRatio: number
+	bestChainsByLength: ChainOfLength[]
 	arbitrage: boolean
 }
 
@@ -144,6 +152,17 @@ export function analyzeProfits(
 		itemCategory,
 	)
 
+	const chainsByLength = arbitrage
+		? []
+		: bestChainsByLength(
+				computable,
+				opts.startItemId ?? null,
+				opts.startCategory ?? null,
+				opts.endItemId ?? null,
+				opts.endCategory ?? null,
+				itemCategory,
+		  )
+
 	return {
 		costKey,
 		itemValues,
@@ -154,6 +173,7 @@ export function analyzeProfits(
 		bestChain: chain,
 		bestChainProfit: profit,
 		bestChainRatio: ratio,
+		bestChainsByLength: chainsByLength,
 		arbitrage,
 	}
 }
@@ -281,4 +301,124 @@ function bestChain(
 		step.cumulativeRatio = runningRatio
 	}
 	return { chain, profit: running, ratio: runningRatio, arbitrage: false }
+}
+
+/**
+ * Finds the best chain for every length from 1 up to the longest feasible
+ * chain. For each length L, returns the connected sequence of exactly L
+ * recipes (respecting start/end constraints) whose product of ratios is the
+ * highest.
+ *
+ * Uses a length-indexed DP: dp[L][node] = best log-ratio achievable by a path
+ * of exactly L recipes ending at `node`. We extend paths one recipe at a time.
+ * To keep the state bounded on cyclic graphs, paths are not allowed to repeat
+ * a recipe, so L is capped at the number of recipes.
+ */
+function bestChainsByLength(
+	nodes: RecipeProfit[],
+	startItemId: string | null,
+	startCategory: string | null,
+	endItemId: string | null,
+	endCategory: string | null,
+	itemCategory: Map<string, string | null>,
+): ChainOfLength[] {
+	const n = nodes.length
+	if (n === 0) return []
+
+	const outItemSets = nodes.map((r) => new Set(r.outputs.map((s) => s.itemId)))
+	const inItemSets = nodes.map((r) => new Set(r.inputs.map((s) => s.itemId)))
+	const adj: number[][] = nodes.map(() => [])
+	for (let a = 0; a < n; a++) {
+		for (let b = 0; b < n; b++) {
+			if (a === b) continue
+			for (const o of outItemSets[a]) {
+				if (inItemSets[b].has(o)) {
+					adj[a].push(b)
+					break
+				}
+			}
+		}
+	}
+
+	const startOk = (r: RecipeProfit) => {
+		if (startItemId && !r.inputs.some((s) => s.itemId === startItemId)) return false
+		if (startCategory) {
+			const cats = r.inputs.map((s) => itemCategory.get(s.itemId) ?? null)
+			if (!cats.some((c) => c === startCategory)) return false
+			if (cats.some((c) => c !== null && c !== startCategory)) return false
+		}
+		return true
+	}
+	const endOk = (r: RecipeProfit) => {
+		if (endItemId && !r.outputs.some((s) => s.itemId === endItemId)) return false
+		if (endCategory) {
+			const cats = r.outputs.map((s) => itemCategory.get(s.itemId) ?? null)
+			if (!cats.some((c) => c === endCategory)) return false
+			if (cats.some((c) => c !== null && c !== endCategory)) return false
+		}
+		return true
+	}
+
+	const logW = nodes.map((r) => r.logRatio)
+	// dp[node] = { score, path: [...recipe indices] }
+	// Start: length-1 paths are recipes that satisfy startOk.
+	let frontier: { node: number; score: number; path: number[] }[] = []
+	for (let i = 0; i < n; i++) {
+		if (startOk(nodes[i])) {
+			frontier.push({ node: i, score: logW[i], path: [i] })
+		}
+	}
+
+	const results: ChainOfLength[] = []
+	let length = 1
+	while (frontier.length > 0 && length <= n) {
+		// Among all length-`length` paths, pick the best one ending at an endOk node.
+		let bestIdx = -1
+		let bestScore = -Infinity
+		for (const p of frontier) {
+			if (endOk(nodes[p.node]) && p.score > bestScore) {
+				bestScore = p.score
+				bestIdx = p.node
+			}
+		}
+		if (bestIdx !== -1) {
+			const winner = frontier.find((p) => p.node === bestIdx && p.score === bestScore)!
+			results.push(buildChainOfLength(nodes, winner.path))
+		}
+
+		// Extend every frontier path by one recipe.
+		const next: { node: number; score: number; path: number[] }[] = []
+		for (const p of frontier) {
+			for (const b of adj[p.node]) {
+				if (p.path.includes(b)) continue
+				next.push({ node: b, score: p.score + logW[b], path: [...p.path, b] })
+			}
+		}
+		frontier = next
+		length++
+	}
+
+	return results
+}
+
+function buildChainOfLength(nodes: RecipeProfit[], path: number[]): ChainOfLength {
+	const chain: ChainStep[] = path.map((idx) => ({
+		recipeId: nodes[idx].recipeId,
+		benchName: nodes[idx].benchName,
+		inputs: nodes[idx].inputs,
+		outputs: nodes[idx].outputs,
+		profit: nodes[idx].profit,
+		cumulative: 0,
+		ratio: nodes[idx].ratio,
+		cumulativeRatio: 1,
+	}))
+	let running = 0
+	let runningRatio = 1
+	for (const step of chain) {
+		running += step.profit
+		step.cumulative = running
+		runningRatio *= step.ratio
+		step.cumulativeRatio = runningRatio
+	}
+	return { length: chain.length, chain, profit: running, ratio: runningRatio }
 }

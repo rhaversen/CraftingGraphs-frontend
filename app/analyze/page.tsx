@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../components/GameDataProvider'
-import { analyzeProfits, type ChainStep, type RecipeProfit } from './profitAnalysis'
+import { analyzeProfits, type ChainStep, type ChainOfLength, type RecipeProfit } from './profitAnalysis'
 import { Combobox, type ComboboxOption } from '../components/Combobox'
 
 const inputCls =
@@ -234,7 +234,9 @@ export default function AnalyzePage() {
 					{analysis.bestChain && analysis.bestChain.length > 0 && (
 						<ChainPanel chain={analysis.bestChain} />
 					)}
-
+				{analysis.bestChainsByLength.length > 0 && (
+					<ChainsByLengthPanel chains={analysis.bestChainsByLength} />
+				)}
 					<RecipeTable recipes={analysis.recipes} />
 				</div>
 			)}
@@ -293,6 +295,85 @@ function ChainPanel({ chain }: { chain: ChainStep[] }) {
 					</div>
 				))}
 			</div>
+		</div>
+	)
+}
+
+function ChainsByLengthPanel({ chains }: { chains: ChainOfLength[] }) {
+	const [openIdx, setOpenIdx] = useState<number | null>(0)
+	return (
+		<div className="rounded-lg border border-gray-200 dark:border-gray-800">
+			<div className="px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+				Best chain by length · {chains.length} length(s)
+			</div>
+			<div className="flex flex-col gap-1 px-3 pb-3">
+				{chains.map((c, i) => {
+					const open = openIdx === i
+					return (
+						<div key={i} className="rounded-md border border-gray-200 dark:border-gray-800">
+							<button
+								type="button"
+								onClick={() => setOpenIdx(open ? null : i)}
+								className="flex w-full items-center justify-between px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+							>
+								<span className="font-medium text-gray-700 dark:text-gray-300">
+									{c.length} recipe{c.length > 1 ? 's' : ''}
+								</span>
+								<span className="font-mono text-xs">
+									<span className={ratioColor(c.ratio)}>{c.ratio.toFixed(2)}×</span>
+									<span className="ml-2 text-gray-400">profit {c.profit >= 0 ? '+' : ''}{fmt(c.profit)}</span>
+									<span className="ml-2 text-gray-400">{open ? '▾' : '▸'}</span>
+								</span>
+							</button>
+							{open && (
+								<div className="border-t border-gray-200 dark:border-gray-800 p-2">
+									<ChainSteps steps={c.chain} />
+								</div>
+							)}
+						</div>
+					)
+				})}
+			</div>
+		</div>
+	)
+}
+
+function ChainSteps({ steps }: { steps: ChainStep[] }) {
+	return (
+		<div className="flex flex-col gap-2">
+			{steps.map((step, i) => (
+				<div key={i} className="flex items-start gap-2">
+					<div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950 text-xs font-medium text-blue-700 dark:text-blue-300">
+						{i + 1}
+					</div>
+					<div className="flex-1 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 text-sm">
+						<div className="flex items-center justify-between">
+							<span className="font-medium text-gray-700 dark:text-gray-300">{step.benchName}</span>
+							<span className="font-mono text-xs">
+								<span className={ratioColor(step.ratio)}>
+									{step.ratio.toFixed(2)}×
+								</span>
+								<span className="ml-2 text-gray-400">Π {step.cumulativeRatio.toFixed(2)}×</span>
+							</span>
+						</div>
+						<div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+							<span className="text-gray-400">in</span>
+							{step.inputs.map((s, j) => (
+								<span key={j} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5">
+									{s.count}× {s.name}
+								</span>
+							))}
+							<span className="text-gray-400">→</span>
+							<span className="text-gray-400">out</span>
+							{step.outputs.map((s, j) => (
+								<span key={j} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5">
+									{s.count}× {s.name}
+								</span>
+							))}
+						</div>
+					</div>
+				</div>
+			))}
 		</div>
 	)
 }
