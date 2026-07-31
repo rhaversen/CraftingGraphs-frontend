@@ -51,6 +51,7 @@ export function AttributeEditor({
 		setRows(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
 	const ti = (group: number, idx: number) => {
 		if (baseTabIndex === undefined) return undefined
+		if (baseTabIndex < 0) return -1
 		return group === 1 ? baseTabIndex + idx : -1
 	}
 

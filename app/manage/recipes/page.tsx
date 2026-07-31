@@ -74,6 +74,7 @@ function SlotEditor({
 	items,
 	attributeKeys,
 	benchInputs,
+	baseTabIndex,
 }: {
 	arr: SlotRow[]
 	setArr: (a: SlotRow[]) => void
@@ -81,6 +82,7 @@ function SlotEditor({
 	items: Item[]
 	attributeKeys: string[]
 	benchInputs?: BenchInput[]
+	baseTabIndex?: number
 }) {
 	const benchDriven = benchInputs !== undefined
 	const slotItems = (idx: number): Item[] => {
@@ -112,11 +114,13 @@ function SlotEditor({
 									type="button"
 									className={`rounded px-2 py-1 text-xs font-medium ${!row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
 									onClick={() => updateSlot(arr, setArr, idx, { isNew: false })}
+									tabIndex={baseTabIndex !== undefined ? -1 : undefined}
 								>Existing</button>
 								<button
 									type="button"
 									className={`rounded px-2 py-1 text-xs font-medium ${row.isNew ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
 									onClick={() => updateSlot(arr, setArr, idx, { isNew: true, item: '', newName: row.newName ?? '', newAttrRows: row.newAttrRows ?? keysToRows(attributeKeys) })}
+									tabIndex={baseTabIndex !== undefined ? -1 : undefined}
 								>New</button>
 								<input
 									className={`${inputCls} w-16`}
@@ -124,9 +128,10 @@ function SlotEditor({
 									min="1"
 									value={row.count}
 									onChange={(e) => updateSlot(arr, setArr, idx, { count: e.target.value })}
+									tabIndex={baseTabIndex !== undefined ? -1 : undefined}
 								/>
 								{!benchDriven && arr.length > 1 && (
-									<button type="button" onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
+									<button type="button" tabIndex={baseTabIndex !== undefined ? -1 : undefined} onClick={() => removeSlot(arr, setArr, idx)} className="rounded px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">✕</button>
 								)}
 							</div>
 							{row.isNew ? (
@@ -139,6 +144,9 @@ function SlotEditor({
 									setAttrRows={(r) => updateSlot(arr, setArr, idx, { newAttrRows: r })}
 									existingNames={slotItems(idx).map((it) => it.name).filter((n): n is string => n !== null)}
 									categories={lockedCategory ? [{ value: lockedCategory, label: lockedCategory }] : slotCategories(idx)}
+									nameTabIndex={baseTabIndex !== undefined ? baseTabIndex + idx : undefined}
+									categoryTabIndex={baseTabIndex !== undefined ? -1 : undefined}
+									attrBaseTabIndex={baseTabIndex !== undefined ? -1 : undefined}
 								/>
 							) : (
 								<Combobox
@@ -147,6 +155,7 @@ function SlotEditor({
 									onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
 									options={slotItems(idx).map((it) => ({ value: it.id, label: it.name ?? it.id }))}
 									placeholder="Search item..."
+									tabIndex={baseTabIndex !== undefined ? baseTabIndex + idx : undefined}
 								/>
 							)}
 						</div>
@@ -154,7 +163,7 @@ function SlotEditor({
 				})}
 			</div>
 			{!benchDriven && (
-				<button type="button" onClick={() => addSlot(arr, setArr)} className="mt-1 text-xs text-blue-600 hover:underline">+ Add slot</button>
+				<button type="button" tabIndex={baseTabIndex !== undefined ? -1 : undefined} onClick={() => addSlot(arr, setArr)} className="mt-1 text-xs text-blue-600 hover:underline">+ Add slot</button>
 			)}
 		</div>
 	)
@@ -267,10 +276,9 @@ function RecipesTab({
 				outputs: resolvedOutputs,
 			})
 			showToast('success', 'Recipe created')
-			setBenchId('')
-			setInputs([{ item: '', count: '1' }])
-			setOutputs([{ item: '', count: '1' }])
-			onChanged()
+		setInputs(selectedBench ? benchInputsToRows(selectedBench.inputs) : [{ item: '', count: '1' }])
+		setOutputs([{ item: '', count: '1' }])
+		onChanged()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create recipe')
 		}
@@ -374,10 +382,11 @@ function RecipesTab({
 							onChange={onBenchChange}
 							options={benches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
 							placeholder="Search bench..."
+							tabIndex={1}
 						/>
-						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={selectedBench?.inputs} />
-						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} />
-						<button type="submit" className={btnPrimary}>Create</button>
+						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={items} attributeKeys={attributeKeys} benchInputs={selectedBench?.inputs} baseTabIndex={2} />
+						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={items} attributeKeys={attributeKeys} baseTabIndex={2 + inputs.length} />
+						<button type="submit" className={btnPrimary} tabIndex={2 + inputs.length + outputs.length}>Create</button>
 					</form>
 				)}
 			</SectionCard>

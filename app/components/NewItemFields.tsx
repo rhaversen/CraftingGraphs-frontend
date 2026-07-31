@@ -17,6 +17,9 @@ export function NewItemFields({
 	existingNames,
 	categories,
 	ref,
+	nameTabIndex,
+	categoryTabIndex,
+	attrBaseTabIndex,
 }: {
 	name: string
 	setName: (s: string) => void
@@ -28,6 +31,9 @@ export function NewItemFields({
 	existingNames?: string[]
 	categories?: ComboboxOption[]
 	ref?: React.Ref<HTMLInputElement>
+	nameTabIndex?: number
+	categoryTabIndex?: number
+	attrBaseTabIndex?: number
 }) {
 	const trimmed = name.trim().toLowerCase()
 	const isDuplicate = trimmed !== '' && existingNames?.some((n) => n.toLowerCase() === trimmed) === true
@@ -40,7 +46,7 @@ export function NewItemFields({
 				onChange={(e) => setName(e.target.value)}
 				placeholder="Item name"
 				autoFocus={autoFocus}
-				tabIndex={1}
+			tabIndex={nameTabIndex ?? 1}
 			/>
 			{isDuplicate && (
 				<p className="text-xs text-red-600 dark:text-red-400">An item with this name already exists</p>
@@ -52,7 +58,7 @@ export function NewItemFields({
 					onChange={setCategory}
 					options={categories}
 					placeholder="Category (optional)"
-					tabIndex={2}
+					tabIndex={categoryTabIndex ?? 2}
 				/>
 			) : (
 				<input
@@ -60,10 +66,10 @@ export function NewItemFields({
 					value={category}
 					onChange={(e) => setCategory(e.target.value)}
 					placeholder="Category (optional)"
-					tabIndex={2}
+					tabIndex={categoryTabIndex ?? 2}
 				/>
 			)}
-			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={3} />
+			<AttributeEditor rows={attrRows} setRows={setAttrRows} baseTabIndex={attrBaseTabIndex ?? 3} />
 		</div>
 	)
 }
