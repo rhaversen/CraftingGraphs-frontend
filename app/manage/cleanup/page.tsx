@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../../components/GameDataProvider'
 import { api } from '../../api'
-import type { Attributes, Item } from '../../types'
+import type { Attributes, Item, Recipe, RecipeSlot } from '../../types'
 import { useToast, Toasts, EmptyState, inputCls, btnPrimary, btnGhost, btnDanger } from '../_shared'
 
 interface ValueOccurrence {
@@ -124,8 +124,61 @@ function mergeKey(item: Item, fromKey: string, toKey: string): Attributes {
 	return attrs
 }
 
+function slotsKey(slots: RecipeSlot[], includeCount: boolean): string {
+	return slots
+		.map((s) => (includeCount ? `${s.item}:${s.count}` : s.item))
+		.sort()
+		.join('|')
+}
+
+function groupBy<T>(arr: T[], keyFn: (t: T) => string): Map<string, T[]> {
+	const m = new Map<string, T[]>()
+	for (const t of arr) {
+		const k = keyFn(t)
+		let list = m.get(k)
+		if (!list) {
+			list = []
+			m.set(k, list)
+		}
+		list.push(t)
+	}
+	return m
+}
+
+function SlotList({ slots, nameOf }: { slots: RecipeSlot[]; nameOf: (s: RecipeSlot) => string }) {
+	if (slots.length === 0) return <span className="text-xs text-gray-400">empty</span>
+	return (
+		<span className="flex flex-wrap gap-1">
+			{slots.map((s, i) => (
+				<span key={i} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs text-gray-600 dark:text-gray-400">
+					{nameOf(s)} <span className="opacity-50">×{s.count}</span>
+				</span>
+			))}
+		</span>
+	)
+}
+
+function RecipeRow({ recipe, nameOf, action }: { recipe: Recipe; nameOf: (s: RecipeSlot) => string; action: ReactNode }) {
+	return (
+		<div className="flex items-start gap-2 rounded-md border border-gray-100 dark:border-gray-800 p-2">
+			<div className="min-w-0 flex-1 space-y-1">
+				<div className="text-xs text-gray-500 dark:text-gray-400">{recipe.benchName ?? recipe.benchId}</div>
+				<div className="flex items-start gap-1 text-xs">
+					<span className="text-gray-400">in</span>
+					<SlotList slots={recipe.inputs} nameOf={nameOf} />
+				</div>
+				<div className="flex items-start gap-1 text-xs">
+					<span className="text-gray-400">out</span>
+					<SlotList slots={recipe.outputs} nameOf={nameOf} />
+				</div>
+			</div>
+			<div className="shrink-0">{action}</div>
+		</div>
+	)
+}
+
 export default function CleanupPage() {
-	const { items, refreshAll } = useGameData()
+	const { items, recipes, refreshAll } = useGameData()
 	const searchParams = useSearchParams()
 	const selectedGameId = searchParams.get('game')
 	const { showToast, toasts } = useToast()
@@ -133,6 +186,49 @@ export default function CleanupPage() {
 	const gameItems = useMemo(() => items.filter((i) => i.gameId === selectedGameId), [items, selectedGameId])
 
 	const analysis = useMemo(() => analyze(gameItems), [gameItems])
+
+	const gameRecipes = useMemo(() => recipes.filter((r) => r.gameId === selectedGameId), [recipes, selectedGameId])
+
+	const itemMap = useMemo(() => {
+		const m = new Map<string, Item>()
+		for (const it of gameItems) m.set(it.id, it)
+		return m
+	}, [gameItems])
+
+	const recipeNameOf = (s: RecipeSlot) => s.itemName ?? itemMap.get(s.item)?.name ?? s.item
+
+	const exactDuplicates = useMemo<Recipe[][]>(() => {
+		const groups = groupBy(gameRecipes, (r) => `${r.benchId}::${slotsKey(r.inputs, true)}::${slotsKey(r.outputs, true)}`)
+		return Array.from(groups.values()).filter((g) => g.length > 1)
+	}, [gameRecipes])
+
+	const conflicts = useMemo<{ key: string; benchId: string; inputs: RecipeSlot[]; recipes: Recipe[] }[]>(() => {
+		const groups = groupBy(gameRecipes, (r) => `${r.benchId}::${slotsKey(r.inputs, true)}`)
+		const result: { key: string; benchId: string; inputs: RecipeSlot[]; recipes: Recipe[] }[] = []
+		for (const [key, g] of groups) {
+			if (g.length < 2) continue
+			const outSigs = new Set(g.map((r) => slotsKey(r.outputs, true)))
+			if (outSigs.size > 1) {
+				result.push({ key, benchId: g[0].benchId, inputs: g[0].inputs, recipes: g })
+			}
+		}
+		return result
+	}, [gameRecipes])
+
+	const sameOutput = useMemo<Recipe[][]>(() => {
+		const groups = groupBy(gameRecipes, (r) => slotsKey(r.outputs, false))
+		const result: Recipe[][] = []
+		for (const g of groups.values()) {
+			if (g.length < 2) continue
+			if (g[0].outputs.length === 0) continue
+			const sameBenchInputs = new Set(g.map((r) => `${r.benchId}::${slotsKey(r.inputs, true)}`)).size === 1
+			if (sameBenchInputs) continue
+			result.push(g)
+		}
+		return result
+	}, [gameRecipes])
+
+	const recipeIssueCount = exactDuplicates.length + conflicts.length + sameOutput.length
 
 	const flagged = useMemo<FlaggedEntry[]>(() => {
 		const result: FlaggedEntry[] = []
@@ -249,6 +345,16 @@ export default function CleanupPage() {
 		}
 	}
 
+	const handleDeleteRecipe = async (recipe: Recipe) => {
+		try {
+			await api.recipes.delete(recipe.id)
+			showToast('success', 'Recipe deleted')
+			refreshAll()
+		} catch (err) {
+			showToast('error', err instanceof Error ? err.message : 'Failed to delete recipe')
+		}
+	}
+
 	if (!selectedGameId) {
 		return (
 			<>
@@ -260,9 +366,9 @@ export default function CleanupPage() {
 
 	return (
 		<>
-			{gameItems.length === 0 ? (
-				<div className="py-6 text-center text-sm text-gray-400">No items to analyze.</div>
-			) : flagged.length === 0 && similarKeys.length === 0 ? (
+			{gameItems.length === 0 && gameRecipes.length === 0 ? (
+				<div className="py-6 text-center text-sm text-gray-400">No items or recipes to analyze.</div>
+			) : flagged.length === 0 && similarKeys.length === 0 && recipeIssueCount === 0 ? (
 				<div className="py-6 text-center text-sm text-gray-400">No issues found. Everything looks consistent!</div>
 			) : (
 				<div className="space-y-4">
@@ -384,6 +490,90 @@ export default function CleanupPage() {
 									</div>
 								</div>
 							))}
+						</>
+					)}
+					{recipeIssueCount > 0 && (
+						<>
+							<div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-3 text-sm text-amber-700 dark:text-amber-300">
+								<strong>{recipeIssueCount}</strong> recipe issue{recipeIssueCount === 1 ? '' : 's'} found — exact duplicates, input conflicts, or multiple recipes producing the same output.
+							</div>
+							{exactDuplicates.length > 0 && (
+								<div className="rounded-lg border border-gray-200 dark:border-gray-800">
+									<div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2">
+										<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Exact duplicate recipes</span>
+										<span className="ml-2 text-xs text-gray-400">{exactDuplicates.length} group{exactDuplicates.length === 1 ? '' : 's'}</span>
+									</div>
+									<div className="space-y-2 p-2">
+										{exactDuplicates.map((group, gi) => (
+											<div key={gi} className="space-y-1">
+												<div className="text-xs text-gray-400">{group.length} identical copie{group.length === 1 ? '' : 's'}</div>
+												{group.map((r, i) => (
+													<RecipeRow
+														key={r.id}
+														recipe={r}
+														nameOf={recipeNameOf}
+														action={i === 0
+															? <span className="rounded bg-green-100 dark:bg-green-950 px-2 py-1 text-xs text-green-700 dark:text-green-400">Keep</span>
+															: <button onClick={() => handleDeleteRecipe(r)} className={btnDanger}>Delete</button>}
+													/>
+												))}
+											</div>
+										))}
+								</div>
+							</div>
+							)}
+							{conflicts.length > 0 && (
+								<div className="rounded-lg border border-gray-200 dark:border-gray-800">
+									<div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2">
+										<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Input conflicts</span>
+										<span className="ml-2 text-xs text-gray-400">same inputs → different outputs · {conflicts.length} group{conflicts.length === 1 ? '' : 's'}</span>
+									</div>
+									<div className="space-y-2 p-2">
+										{conflicts.map((c) => (
+											<div key={c.key} className="space-y-1">
+												<div className="text-xs text-gray-400">Same inputs on {c.recipes[0].benchName ?? c.benchId}:</div>
+												<div className="flex items-start gap-1 text-xs pl-2">
+													<span className="text-gray-400">in</span>
+													<SlotList slots={c.inputs} nameOf={recipeNameOf} />
+												</div>
+												{c.recipes.map((r) => (
+													<RecipeRow
+														key={r.id}
+														recipe={r}
+														nameOf={recipeNameOf}
+														action={<button onClick={() => handleDeleteRecipe(r)} className={btnDanger}>Delete</button>}
+													/>
+												))}
+											</div>
+										))}
+								</div>
+							</div>
+							)}
+							{sameOutput.length > 0 && (
+								<div className="rounded-lg border border-gray-200 dark:border-gray-800">
+									<div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2">
+										<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Multiple recipes, same output</span>
+										<span className="ml-2 text-xs text-gray-400">{sameOutput.length} group{sameOutput.length === 1 ? '' : 's'}</span>
+									</div>
+									<div className="space-y-2 p-2">
+										{sameOutput.map((group, gi) => (
+											<div key={gi} className="space-y-1">
+												<div className="text-xs text-gray-400">
+													Same output: {Array.from(new Set(group.flatMap((r) => r.outputs.map((s) => recipeNameOf(s))))).join(', ')}
+												</div>
+												{group.map((r) => (
+													<RecipeRow
+														key={r.id}
+														recipe={r}
+														nameOf={recipeNameOf}
+														action={<button onClick={() => handleDeleteRecipe(r)} className={btnDanger}>Delete</button>}
+													/>
+												))}
+											</div>
+										))}
+									</div>
+								</div>
+							)}
 						</>
 					)}
 				</div>
