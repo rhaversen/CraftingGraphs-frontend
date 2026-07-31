@@ -90,6 +90,31 @@ export function buildGraphModel(items: Item[], _benches: Bench[], recipes: Recip
 	const adjacency = new Map<string, string[]>()
 	const reverseAdjacency = new Map<string, string[]>()
 
+	// Source items (raw materials with no predecessor) that feed more than
+	// one recipe are duplicated — one copy per consuming recipe — so each copy
+	// has a single outgoing edge and can sit beside its recipe. This removes
+	// the long fan-out edges from shared raw materials that cause most
+	// crossings in crafting graphs.
+	const sourceRecipeUses = new Map<string, Set<string>>()
+	for (const recipe of recipes) {
+		const seen = new Set<string>()
+		for (const input of recipe.inputs) {
+			if (!nodeMap.has(input.item) || seen.has(input.item)) continue
+			seen.add(input.item)
+			if ((itemReverseAdjacency.get(input.item) ?? []).length > 0) continue
+			let set = sourceRecipeUses.get(input.item)
+			if (!set) {
+				set = new Set()
+				sourceRecipeUses.set(input.item, set)
+			}
+			set.add(recipe.id)
+		}
+	}
+	const duplicatedSources = new Set<string>()
+	for (const [itemId, recipeSet] of sourceRecipeUses) {
+		if (recipeSet.size > 1) duplicatedSources.add(itemId)
+	}
+
 	for (const recipe of recipes) {
 		const benchName = benchNameMap.get(recipe.benchId) ?? recipe.benchName ?? '?'
 		const validInputs = recipe.inputs.filter((i) => nodeMap.has(i.item))
@@ -133,20 +158,29 @@ export function buildGraphModel(items: Item[], _benches: Bench[], recipes: Recip
 			benches: [],
 		})
 
-		// Edges: input items → recipe node
+		// Edges: input items → recipe node. Duplicated sources use a per-recipe
+		// copy so each copy feeds exactly one recipe.
 		for (const input of validInputs) {
+			let sourceNodeId = input.item
+			if (duplicatedSources.has(input.item)) {
+				sourceNodeId = `${input.item}__${recipe.id}`
+				if (!nodeMap.has(sourceNodeId)) {
+					const orig = nodeMap.get(input.item)!
+					nodeMap.set(sourceNodeId, { ...orig, id: sourceNodeId })
+				}
+			}
 			edgeList.push({
 				id: `e${edgeList.length}`,
-				source: input.item,
+				source: sourceNodeId,
 				target: recipeNodeId,
 				recipeId: recipe.id,
 				benchName,
 				isBackEdge: recipeInCycle,
 			})
-			if (!adjacency.has(input.item)) adjacency.set(input.item, [])
-			adjacency.get(input.item)!.push(recipeNodeId)
+			if (!adjacency.has(sourceNodeId)) adjacency.set(sourceNodeId, [])
+			adjacency.get(sourceNodeId)!.push(recipeNodeId)
 			if (!reverseAdjacency.has(recipeNodeId)) reverseAdjacency.set(recipeNodeId, [])
-			reverseAdjacency.get(recipeNodeId)!.push(input.item)
+			reverseAdjacency.get(recipeNodeId)!.push(sourceNodeId)
 		}
 
 		// Edges: recipe node → output items
@@ -165,6 +199,10 @@ export function buildGraphModel(items: Item[], _benches: Bench[], recipes: Recip
 			reverseAdjacency.get(output.item)!.push(recipeNodeId)
 		}
 	}
+
+	// Remove the original nodes of duplicated sources — every consuming
+	// recipe now has its own copy, so the shared original would be isolated.
+	for (const id of duplicatedSources) nodeMap.delete(id)
 
 	// 6. Update item node degrees based on full adjacency (through recipe nodes)
 	for (const node of nodeMap.values()) {
