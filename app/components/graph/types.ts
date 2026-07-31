@@ -11,8 +11,8 @@ export interface SimNode {
 	scc: number
 	inCycle: boolean
 	radius: number
-	/** 'item' = normal item node, 'recipe' = intermediate recipe node */
-	kind: 'item' | 'recipe'
+	/** 'item' = normal item node, 'recipe' = intermediate recipe node, 'dummy' = invisible routing node for long edges */
+	kind: 'item' | 'recipe' | 'dummy'
 	/** For recipe nodes: the recipe this node represents */
 	recipeId?: string
 	/** For recipe nodes: the bench name */
@@ -46,6 +46,7 @@ export interface Metrics {
 	crossingPairs: [string, string][]
 	directionViolations: number
 	nodeOverlaps: number
+	totalEdgeLength: number
 	avgEdgeLength: number
 	stddevEdgeLength: number
 	maxEdgeLength: number

@@ -64,7 +64,8 @@ export function computeMetrics(model: GraphModel): Metrics {
 		const dy = t.y - s.y
 		lengths.push(Math.sqrt(dx * dx + dy * dy))
 	}
-	const avgEdgeLength = lengths.length ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0
+	const totalEdgeLength = lengths.reduce((a, b) => a + b, 0)
+	const avgEdgeLength = lengths.length ? totalEdgeLength / lengths.length : 0
 	const stddevEdgeLength = lengths.length
 		? Math.sqrt(lengths.reduce((a, b) => a + (b - avgEdgeLength) ** 2, 0) / lengths.length)
 		: 0
@@ -78,6 +79,7 @@ export function computeMetrics(model: GraphModel): Metrics {
 		crossingPairs,
 		directionViolations,
 		nodeOverlaps,
+		totalEdgeLength,
 		avgEdgeLength,
 		stddevEdgeLength,
 		maxEdgeLength,
