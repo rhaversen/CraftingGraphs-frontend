@@ -151,6 +151,7 @@ export default function RecipesPage() {
 	)
 
 	const [showNullRecipes, setShowNullRecipes] = useState(false)
+	const [filterBenchId, setFilterBenchId] = useState('')
 	const [benchId, setBenchId] = useState('')
 	const [inputs, setInputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
 	const [outputs, setOutputs] = useState<SlotRow[]>([{ item: '', count: '1' }])
@@ -323,7 +324,8 @@ export default function RecipesPage() {
 	}
 
 	const noItemsOrBenches = gameItems.length === 0 || gameBenches.length === 0
-	const visibleRecipes = showNullRecipes ? gameRecipes : gameRecipes.filter((r) => r.outputs.length > 0)
+	const visibleRecipes = (showNullRecipes ? gameRecipes : gameRecipes.filter((r) => r.outputs.length > 0))
+		.filter((r) => !filterBenchId || r.benchId === filterBenchId)
 	const sortedRecipes = [...visibleRecipes].sort((a, b) => {
 		const catOf = (r: Recipe) => {
 			const firstOut = r.outputs[0]
@@ -378,6 +380,15 @@ export default function RecipesPage() {
 						/>
 						Show null-output recipes
 					</label>
+					<div className="w-56">
+						<Combobox
+							className={inputCls}
+							value={filterBenchId}
+							onChange={setFilterBenchId}
+							options={gameBenches.map((b) => ({ value: b.id, label: b.name ?? b.id }))}
+							placeholder="Filter by bench..."
+						/>
+					</div>
 				</div>
 				{visibleRecipes.length === 0 ? (
 					<EmptyState message="No recipes yet. Create one above." />
