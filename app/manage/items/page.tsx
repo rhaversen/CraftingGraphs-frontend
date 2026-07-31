@@ -7,6 +7,7 @@ import { api } from '../../api'
 import type { Item } from '../../types'
 import { AttributeEditor, type AttrRow, attrsToRows, keysToRows, rowsToAttrs } from '../../components/AttributeEditor'
 import { NewItemFields } from '../../components/NewItemFields'
+import { Combobox } from '../../components/Combobox'
 import { ExpandableRow, useExpanded } from '../../components/ExpandableRow'
 import { useToast, Toasts, SectionCard, EmptyState, inputCls, btnPrimary, btnGhost, btnDanger } from '../_shared'
 
@@ -24,6 +25,7 @@ export default function ItemsPage() {
 
 	const [name, setName] = useState('')
 	const [category, setCategory] = useState('')
+	const [filterCategory, setFilterCategory] = useState('')
 	const [attrRows, setAttrRows] = useState<AttrRow[]>(keysToRows(gameAttrKeys))
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
@@ -42,6 +44,15 @@ export default function ItemsPage() {
 				return (a.name ?? '').localeCompare(b.name ?? '')
 			}),
 		[gameItems],
+	)
+
+	const filterCategories = useMemo(
+		() => [...new Set(gameItems.map((it) => it.category).filter((c): c is string => c !== null))].sort(),
+		[gameItems],
+	)
+	const visibleItems = useMemo(
+		() => sortedItems.filter((it) => !filterCategory || it.category === filterCategory),
+		[sortedItems, filterCategory],
 	)
 
 	const handleAdd = async (e: React.FormEvent) => {
@@ -121,12 +132,25 @@ export default function ItemsPage() {
 				</form>
 			</SectionCard>
 
-			<SectionCard title="Items" count={gameItems.length}>
-				{gameItems.length === 0 ? (
-					<EmptyState message="No items yet. Create one above." />
-				) : (
-					<div className="space-y-1">
-						{sortedItems.map((it) => (
+		<SectionCard title="Items" count={visibleItems.length}>
+			<div className="flex items-center gap-2 pb-2">
+				<div className="w-56">
+					<Combobox
+						className={inputCls}
+						value={filterCategory}
+						onChange={setFilterCategory}
+						options={filterCategories.map((c) => ({ value: c, label: c }))}
+						placeholder="Filter by category..."
+					/>
+				</div>
+			</div>
+			{gameItems.length === 0 ? (
+				<EmptyState message="No items yet. Create one above." />
+			) : visibleItems.length === 0 ? (
+				<EmptyState message="No items match this filter." />
+			) : (
+				<div className="space-y-1">
+					{visibleItems.map((it) => (
 							<div key={it.id} className="rounded-md border border-gray-100 dark:border-gray-800 p-2">
 								{editingId === it.id ? (
 									<div className="space-y-2">
