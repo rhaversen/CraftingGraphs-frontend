@@ -39,6 +39,7 @@ function BenchInputsEditor({
 						onChange={(v) => update(i, { category: v || null })}
 						options={categories}
 						placeholder="Category"
+						allowFreeForm
 					/>
 					<label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
 						<input

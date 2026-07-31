@@ -15,6 +15,7 @@ export function Combobox({
 	className,
 	tabIndex,
 	inputRef,
+	allowFreeForm,
 }: {
 	value: string
 	onChange: (value: string) => void
@@ -23,6 +24,7 @@ export function Combobox({
 	className?: string
 	tabIndex?: number
 	inputRef?: React.Ref<HTMLInputElement>
+	allowFreeForm?: boolean
 }) {
 	const [query, setQuery] = useState('')
 	const [open, setOpen] = useState(false)
@@ -30,7 +32,7 @@ export function Combobox({
 	const ref = useRef<HTMLDivElement>(null)
 
 	const selected = options.find((o) => o.value === value)
-	const inputText = open ? query : (selected?.label ?? '')
+	const inputText = open ? query : (selected?.label ?? (allowFreeForm ? value : ''))
 
 	const filtered = query
 		? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
@@ -82,6 +84,7 @@ export function Combobox({
 					setQuery(e.target.value)
 					setOpen(true)
 					setHighlight(0)
+					if (allowFreeForm) onChange(e.target.value)
 				}}
 				onFocus={() => {
 					setOpen(true)

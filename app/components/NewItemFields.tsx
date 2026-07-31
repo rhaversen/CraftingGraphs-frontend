@@ -59,6 +59,7 @@ export function NewItemFields({
 					options={categories}
 					placeholder="Category (optional)"
 					tabIndex={categoryTabIndex ?? 2}
+					allowFreeForm
 				/>
 			) : (
 				<input
