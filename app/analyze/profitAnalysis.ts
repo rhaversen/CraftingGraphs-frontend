@@ -15,6 +15,7 @@ export interface RecipeProfit {
 	outputValue: number
 	profit: number
 	ratio: number
+	logRatio: number
 	/** Item names referenced by the recipe that exist but lack a numeric value for the cost attribute. */
 	unknownItems: string[]
 	/** False if any input/output item is missing or lacks a numeric cost value. */
@@ -28,6 +29,8 @@ export interface ChainStep {
 	outputs: SlotView[]
 	profit: number
 	cumulative: number
+	ratio: number
+	cumulativeRatio: number
 }
 
 export interface ProfitAnalysis {
@@ -39,6 +42,7 @@ export interface ProfitAnalysis {
 	bestRecipe: RecipeProfit | null
 	bestChain: ChainStep[] | null
 	bestChainProfit: number
+	bestChainRatio: number
 	arbitrage: boolean
 }
 
@@ -110,6 +114,7 @@ export function analyzeProfits(
 
 		const profit = outputValue - inputCost
 		const ratio = inputCost > 0 ? outputValue / inputCost : outputValue > 0 ? Infinity : 1
+		const logRatio = Number.isFinite(ratio) && ratio > 0 ? Math.log(ratio) : ratio > 0 ? 1e15 : -1e15
 		return {
 			recipeId: r.id,
 			benchName: bName,
@@ -119,6 +124,7 @@ export function analyzeProfits(
 			outputValue,
 			profit,
 			ratio,
+			logRatio,
 			unknownItems: [...unknown],
 			computable,
 		}
@@ -126,10 +132,10 @@ export function analyzeProfits(
 
 	const computable = all.filter((r) => r.computable)
 	const bestRecipe = computable.length
-		? computable.reduce((a, b) => (b.profit > a.profit ? b : a))
+		? computable.reduce((a, b) => (b.ratio > a.ratio ? b : a))
 		: null
 
-	const { chain, profit, arbitrage } = bestChain(
+	const { chain, profit, ratio, arbitrage } = bestChain(
 		computable,
 		opts.startItemId ?? null,
 		opts.startCategory ?? null,
@@ -142,24 +148,26 @@ export function analyzeProfits(
 		costKey,
 		itemValues,
 		itemsWithoutCost,
-		recipes: [...all].sort((a, b) => b.profit - a.profit),
+		recipes: [...all].sort((a, b) => b.ratio - a.ratio),
 		computableCount: computable.length,
 		bestRecipe,
 		bestChain: chain,
 		bestChainProfit: profit,
+		bestChainRatio: ratio,
 		arbitrage,
 	}
 }
 
 /**
- * Finds the most profitable connected sequence of recipes.
+ * Finds the connected sequence of recipes that multiplies value the most.
  *
  * Recipes are nodes; an edge A→B exists when some output of A is an input of B
- * (A feeds B). Each node is weighted by its independent profit. The best chain
- * is the node-weighted longest path. Because the recipe graph may contain
- * cycles, we use Bellman-Ford-style relaxation: after |V| passes, any further
- * improvement indicates a positive cycle (arbitrage) that can be repeated for
- * unbounded profit.
+ * (A feeds B). Each node is weighted by its independent ratio (output/input).
+ * The best chain maximizes the product of ratios, which is equivalent to
+ * maximizing the sum of log-ratios (node-weighted longest path). Because the
+ * recipe graph may contain cycles, we use Bellman-Ford-style relaxation: after
+ * |V| passes, any further improvement indicates a cycle whose product of
+ * ratios exceeds 1 (arbitrage) that can be repeated for unbounded gain.
  */
 function bestChain(
 	nodes: RecipeProfit[],
@@ -168,9 +176,9 @@ function bestChain(
 	endItemId: string | null,
 	endCategory: string | null,
 	itemCategory: Map<string, string | null>,
-): { chain: ChainStep[] | null; profit: number; arbitrage: boolean } {
+): { chain: ChainStep[] | null; profit: number; ratio: number; arbitrage: boolean } {
 	const n = nodes.length
-	if (n === 0) return { chain: null, profit: 0, arbitrage: false }
+	if (n === 0) return { chain: null, profit: 0, ratio: 0, arbitrage: false }
 
 	const outItemSets = nodes.map((r) => new Set(r.outputs.map((s) => s.itemId)))
 	const inItemSets = nodes.map((r) => new Set(r.inputs.map((s) => s.itemId)))
@@ -212,7 +220,8 @@ function bestChain(
 	}
 
 	const NEG = -Infinity
-	const dist = nodes.map((r) => (startOk(r) ? r.profit : NEG))
+	const logW = nodes.map((r) => r.logRatio)
+	const dist = nodes.map((r, i) => (startOk(r) ? logW[i] : NEG))
 	const pred = new Array<number>(n).fill(-1)
 
 	let arbitrage = false
@@ -221,7 +230,7 @@ function bestChain(
 		for (let a = 0; a < n; a++) {
 			if (dist[a] === NEG) continue
 			for (const b of adj[a]) {
-				const cand = dist[a] + nodes[b].profit
+				const cand = dist[a] + logW[b]
 				if (cand > dist[b]) {
 					dist[b] = cand
 					pred[b] = a
@@ -233,7 +242,7 @@ function bestChain(
 		if (iter === n - 1 && updated) arbitrage = true
 	}
 
-	if (arbitrage) return { chain: null, profit: Infinity, arbitrage: true }
+	if (arbitrage) return { chain: null, profit: Infinity, ratio: Infinity, arbitrage: true }
 
 	let end = -1
 	let best = NEG
@@ -244,7 +253,7 @@ function bestChain(
 			end = i
 		}
 	}
-	if (end === -1 || best === NEG) return { chain: null, profit: 0, arbitrage: false }
+	if (end === -1 || best === NEG) return { chain: null, profit: 0, ratio: 0, arbitrage: false }
 
 	const chain: ChainStep[] = []
 	let cur = end
@@ -258,13 +267,18 @@ function bestChain(
 			outputs: nodes[cur].outputs,
 			profit: nodes[cur].profit,
 			cumulative: 0,
+			ratio: nodes[cur].ratio,
+			cumulativeRatio: 1,
 		})
 		cur = pred[cur]
 	}
 	let running = 0
+	let runningRatio = 1
 	for (const step of chain) {
 		running += step.profit
 		step.cumulative = running
+		runningRatio *= step.ratio
+		step.cumulativeRatio = runningRatio
 	}
-	return { chain, profit: best, arbitrage: false }
+	return { chain, profit: running, ratio: runningRatio, arbitrage: false }
 }

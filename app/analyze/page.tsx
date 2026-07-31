@@ -109,10 +109,11 @@ export default function AnalyzePage() {
 				<div>
 					<h1 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Profit Analysis</h1>
 					<p className="text-sm text-gray-500 dark:text-gray-400">
-						Pick a cost attribute. Each item&apos;s base value is its cost; a recipe&apos;s profit is the
-						sum of output values minus the sum of input costs. The algorithm finds the single most
-					profitable recipe and the most profitable connected chain of recipes. Optionally constrain
-				the chain to start from a given item category and/or end at a given item category.
+					Pick a cost attribute. Each item&apos;s base value is its cost; a recipe&apos;s ratio is its
+					total output value divided by its total input cost. The algorithm finds the single recipe
+					with the highest ratio and the connected chain of recipes whose product of ratios (i.e.
+					total input-to-output multiplier) is the largest. Optionally constrain the chain to start
+					from a given item category and/or end at a given item category.
 					</p>
 				</div>
 
@@ -203,21 +204,22 @@ export default function AnalyzePage() {
 
 					{analysis.arbitrage && (
 						<div className="rounded-md border border-purple-300 bg-purple-50 dark:border-purple-800 dark:bg-purple-950 p-3 text-sm text-purple-700 dark:text-purple-300">
-							<span className="font-semibold">Arbitrage detected.</span> A positive cycle of recipes
-							exists within the filtered set — profit can be repeated indefinitely, so no finite best
-							chain exists. Tighten the start/end filters to break the cycle.
+<span className="font-semibold">Arbitrage detected.</span> A cycle of recipes
+								exists within the filtered set whose combined ratio exceeds 1 — value can be multiplied
+								indefinitely, so no finite best chain exists. Tighten the start/end filters to break the
+								cycle.
 						</div>
 					)}
 
 					<div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 						<SummaryCard
 							title="Best single recipe"
-							value={analysis.bestRecipe ? fmt(analysis.bestRecipe.profit) : '—'}
+							value={analysis.bestRecipe ? `${analysis.bestRecipe.ratio.toFixed(2)}×` : '—'}
 							subtitle={analysis.bestRecipe?.benchName}
 						/>
 						<SummaryCard
-							title="Best chain profit"
-							value={analysis.arbitrage ? '∞' : analysis.bestChain ? fmt(analysis.bestChainProfit) : '—'}
+							title="Best chain multiplier"
+							value={analysis.arbitrage ? '∞' : analysis.bestChain ? `${analysis.bestChainRatio.toFixed(2)}×` : '—'}
 							subtitle={
 								analysis.bestChain ? `${analysis.bestChain.length} recipe(s)` : undefined
 							}
@@ -266,10 +268,10 @@ function ChainPanel({ chain }: { chain: ChainStep[] }) {
 							<div className="flex items-center justify-between">
 								<span className="font-medium text-gray-700 dark:text-gray-300">{step.benchName}</span>
 								<span className="font-mono text-xs">
-									<span className={step.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-										{step.profit >= 0 ? '+' : ''}{fmt(step.profit)}
-									</span>
-									<span className="ml-2 text-gray-400">Σ {fmt(step.cumulative)}</span>
+								<span className={ratioColor(step.ratio)}>
+									{step.ratio.toFixed(2)}×
+								</span>
+								<span className="ml-2 text-gray-400">Π {step.cumulativeRatio.toFixed(2)}×</span>
 								</span>
 							</div>
 							<div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -299,7 +301,7 @@ function RecipeTable({ recipes }: { recipes: RecipeProfit[] }) {
 	return (
 		<div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto">
 			<div className="px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-				All recipes (sorted by profit)
+				All recipes (sorted by ratio)
 			</div>
 			<table className="w-full text-sm">
 				<thead>
@@ -309,8 +311,8 @@ function RecipeTable({ recipes }: { recipes: RecipeProfit[] }) {
 						<th className="px-3 py-2 font-medium">Outputs</th>
 						<th className="px-3 py-2 text-right font-medium">Cost</th>
 						<th className="px-3 py-2 text-right font-medium">Value</th>
-						<th className="px-3 py-2 text-right font-medium">Profit</th>
 						<th className="px-3 py-2 text-right font-medium">Ratio</th>
+						<th className="px-3 py-2 text-right font-medium">Profit</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -337,11 +339,11 @@ function RecipeTable({ recipes }: { recipes: RecipeProfit[] }) {
 							</td>
 							<td className="px-3 py-2 text-right font-mono text-gray-600 dark:text-gray-300">{fmt(r.inputCost)}</td>
 							<td className="px-3 py-2 text-right font-mono text-gray-600 dark:text-gray-300">{fmt(r.outputValue)}</td>
+							<td className={`px-3 py-2 text-right font-mono ${r.computable ? ratioColor(r.ratio) : 'text-gray-400'}`}>
+								{r.computable ? (Number.isFinite(r.ratio) ? `${r.ratio.toFixed(2)}×` : '∞') : '—'}
+							</td>
 							<td className={`px-3 py-2 text-right font-mono font-medium ${r.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
 								{r.profit >= 0 ? '+' : ''}{fmt(r.profit)}
-							</td>
-							<td className={`px-3 py-2 text-right font-mono ${r.computable ? ratioColor(r.ratio) : 'text-gray-400'}`}>
-								{r.computable ? (Number.isFinite(r.ratio) ? r.ratio.toFixed(2) : '∞') : '—'}
 							</td>
 						</tr>
 					))}
