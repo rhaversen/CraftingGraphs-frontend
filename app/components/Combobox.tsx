@@ -14,6 +14,7 @@ export function Combobox({
 	placeholder,
 	className,
 	tabIndex,
+	inputRef,
 }: {
 	value: string
 	onChange: (value: string) => void
@@ -21,6 +22,7 @@ export function Combobox({
 	placeholder?: string
 	className?: string
 	tabIndex?: number
+	inputRef?: React.Ref<HTMLInputElement>
 }) {
 	const [query, setQuery] = useState('')
 	const [open, setOpen] = useState(false)
@@ -71,6 +73,7 @@ export function Combobox({
 	return (
 		<div ref={ref} className="relative">
 			<input
+				ref={inputRef}
 				className={className}
 				value={inputText}
 				placeholder={placeholder}

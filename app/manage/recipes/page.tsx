@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useGameData } from '../../components/GameDataProvider'
 import { api } from '../../api'
@@ -38,6 +38,7 @@ function SlotEditor({
 	attributeKeys,
 	benchInputs,
 	baseTabIndex,
+	firstFieldRef,
 }: {
 	arr: SlotRow[]
 	setArr: (a: SlotRow[]) => void
@@ -46,6 +47,7 @@ function SlotEditor({
 	attributeKeys: string[]
 	benchInputs?: BenchInput[]
 	baseTabIndex?: number
+	firstFieldRef?: React.RefObject<HTMLInputElement | null>
 }) {
 	const benchDriven = benchInputs !== undefined
 	const slotItems = (idx: number): Item[] => {
@@ -110,15 +112,17 @@ function SlotEditor({
 									nameTabIndex={baseTabIndex !== undefined ? baseTabIndex + idx : undefined}
 									categoryTabIndex={baseTabIndex !== undefined ? -1 : undefined}
 									attrBaseTabIndex={baseTabIndex !== undefined ? -1 : undefined}
-								/>
-							) : (
-								<Combobox
-									className={inputCls}
-									value={row.item}
-									onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
-									options={slotItems(idx).map((it) => ({ value: it.id, label: it.name ?? it.id }))}
-									placeholder="Search item..."
-									tabIndex={baseTabIndex !== undefined ? baseTabIndex + idx : undefined}
+								ref={idx === 0 ? firstFieldRef : undefined}
+							/>
+						) : (
+							<Combobox
+								className={inputCls}
+								value={row.item}
+								onChange={(v) => updateSlot(arr, setArr, idx, { item: v })}
+								options={slotItems(idx).map((it) => ({ value: it.id, label: it.name ?? it.id }))}
+								placeholder="Search item..."
+								tabIndex={baseTabIndex !== undefined ? baseTabIndex + idx : undefined}
+								inputRef={idx === 0 ? firstFieldRef : undefined}
 								/>
 							)}
 						</div>
@@ -156,6 +160,7 @@ export default function RecipesPage() {
 	const [editOutputs, setEditOutputs] = useState<SlotRow[]>([])
 	const [confirmId, setConfirmId] = useState<string | null>(null)
 	const { expandedIds, toggleExpand } = useExpanded()
+	const firstInputRef = useRef<HTMLInputElement | null>(null)
 
 	const selectedBench = gameBenches.find((b) => b.id === benchId)
 	const editBench = gameBenches.find((b) => b.id === editBenchId)
@@ -240,6 +245,7 @@ export default function RecipesPage() {
 			setInputs(selectedBench ? benchInputsToRows(selectedBench.inputs) : [{ item: '', count: '1' }])
 			setOutputs([{ item: '', count: '1' }])
 			refreshAll()
+			firstInputRef.current?.focus()
 		} catch (err) {
 			showToast('error', err instanceof Error ? err.message : 'Failed to create recipe')
 		}
@@ -354,7 +360,7 @@ export default function RecipesPage() {
 							placeholder="Search bench..."
 							tabIndex={1}
 						/>
-						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={gameItems} attributeKeys={gameAttrKeys} benchInputs={selectedBench?.inputs} baseTabIndex={2} />
+						<SlotEditor arr={inputs} setArr={setInputs} label="Inputs" items={gameItems} attributeKeys={gameAttrKeys} benchInputs={selectedBench?.inputs} baseTabIndex={2} firstFieldRef={firstInputRef} />
 						<SlotEditor arr={outputs} setArr={setOutputs} label="Outputs" items={gameItems} attributeKeys={gameAttrKeys} baseTabIndex={2 + inputs.length} />
 						<button type="submit" className={btnPrimary} tabIndex={2 + inputs.length + outputs.length}>Create</button>
 					</form>
