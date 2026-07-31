@@ -88,7 +88,7 @@ export function Combobox({
 					setQuery('')
 				}}
 				onBlur={() => {
-					if (filtered.length === 1) {
+					if (query.trim() !== '' && filtered.length > 0) {
 						select(filtered[0].value)
 					} else {
 						setOpen(false)
